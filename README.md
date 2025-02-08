@@ -1,2 +1,9 @@
 # data-factory
-This thesis outlines the creation of a toolset to optimize data pipeline management in scientific research, focusing on ease of use, flexibility, and open standards. It aims to boost researcher productivity by facilitating the development and sharing of data pipelines and entries, tailored for the dynamic needs of scientific exploration.
+
+This project is composed of 5 parts that will eventually connect together.
+
+Metadata Store: https://github.com/YArzumanyan/data-factory-metadata-store
+Manager CLI: https://github.com/YArzumanyan/data-factory-manager-cli
+Executor CLI: https://github.com/YArzumanyan/data-factory-executor-cli
+Artifact Repository: https://github.com/YArzumanyan/data-factory-artifact-repository
+API: https://github.com/YArzumanyan/data-factory-api
