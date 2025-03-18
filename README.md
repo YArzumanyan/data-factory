@@ -1,135 +1,176 @@
-# data-factory (WIP)
+# Data Factory
 
-## Data Factory Overview
+The Data Factory is a modular platform designed to enable users to create, run, and share data processing pipelines in a flexible, FAIR-compliant manner. The project is built around four main components that work together to orchestrate the execution of pipelines constructed from datasets and scripts.
 
-The data factory is a collection of 4 applications/components that will work together. The idea of the project is to create a portal where the users can create pipelines, run and share them. Each pipeline will be constructed of datasets and scripts that will be used to run the pipeline. The 4 components making this possible will be Metadata Store, Manager CLI, Executor CLI and Database.
+## Pipeline Configuration and JSON Schema
 
-## Pipeline configuration
+The JSON schema defines the structure of the pipeline configuration and metadata files, ensuring that each file adheres to a standard format that the various components of the Data Factory can understand. Below is a detailed breakdown:
 
-Pipeline is a collection of scripts and datasets that are connected together, when executed it should run everything in a certain order and yield a result at the end. Each pipeline will be represented in a json format like a directed graph. Each edge is a sort of input for a node and each node is a dataset or a script. Inputs for each node is a dataset or an output from another script, and outputs are results of a script. The configuration will have multiple ways of linking the datasets and scripts.
+### The Root Object: Pipeline
 
-## Json schema
+At the highest level, the pipeline configuration is a JSON file that represents a pipeline as a directed graph. This root object must include:
 
-There will be a json schema for the configuration which will be used application-wide to validate the config file. The config file will several properties. This schema doesn't have to be enforced too much in a form of schema file, but it will be in more details validated programatically.
+- **type:**  
+  An array of strings that, for a pipeline, includes `"pipeline"`. This tells the system that the file is a pipeline configuration.
+  
+- **url:**  
+  A unique identifier (or resource locator) for the pipeline. This can be a simple ID or a URL.
 
-## ROOT type
+- **nodes:**  
+  An array that contains each individual node (either a dataset or a script) that makes up the pipeline.
 
-### type
+### Nodes: Datasets and Scripts
 
-An array of strings, that are the types of the object. Based on the types it will be validated and worked with differently in the application.
-- `pipeline`: this object is a pipeline, always a standalone file
-- `dataset`: this object is a dataset
-	- `dataset-file`: This means that this is a standalone file with dataset configuration. This dataset requires `distribution` property and unique node `id`
-	- `dataset-derived`: this dataset will be calculated by a pipeline. requires `pipeline` property. If the pipeline requires additional bindings, then this will also require to add `bindings` property
-	- `dataset-reference`: dataset that will be referenced by id through cli when generating the pipeline. This is the id of a dataset-file from `Metadata Store`
-- `script`: this object is a script
-	- `script-file`: This means that this is a standalone file with script configuration. This script requires `distribution` property and unique node `id`
-	- `script-reference`: Script That will be referenced by id through cli when generating the pipeline. This is the id of a script-file from `Metadata Store`
+Each entry in the `nodes` array represents a component of the pipeline. They extend a base "ROOT" structure with the following common properties:
 
-_Note: In database combinations can be saved as 8 bit number as there are 7 items and some of them can't even be at the same time_   
+- **id:**  
+  A unique identifier within the pipeline. This ID is critical for referencing the node later, especially for dynamic binding during execution.
 
-### previousVersion (optional)
+- **label (optional):**  
+  A human-friendly name for the node.
 
-This is a reference of the previous version of this object. the `url` of the previous version is written here
+- **dependsOn:**  
+  An array listing the node IDs that the current node depends on. This is used to establish the execution order.
 
-## PIPELINE type extends ROOT type
+- **previousVersion (optional):**  
+  A field that can hold a URL reference to an earlier version of the configuration, which helps with version control.
 
-### url
+#### Dataset Nodes
 
-String identifier, be it a simple id or a path to the resource (https, ftp, file and such)
+Dataset nodes can come in different types:
 
-### nodes
+- **`dataset-file`:**  
+  Indicates that the dataset configuration is stored as a standalone file. If you include the dataset configuration directly within the pipeline file, you would omit this type.
 
-Array of SCRIPT and DATASET types
+- **`dataset-derived`:**  
+  Represents a dataset that is computed by running a sub-pipeline. It requires:
+  - **pipeline:** A URL pointing to the sub-pipeline configuration.
+  - **bindings (optional):** An array that maps inputs of the sub-pipeline to nodes in the current pipeline. Each binding object includes:
+    - `node`: The ID of the node within the referenced pipeline.
+    - `dataset`: The ID of the dataset in the current pipeline that should be bound.
 
-## SCRIPT and DATASET type extends ROOT type
+- **`dataset-reference`:**  
+  Used within the pipeline configuration to refer to an external, standalone dataset file. When used, its node ID becomes the reference for dynamic binding during execution.
 
-### id
+#### Script Nodes
 
-Is the node id used for referencing the nodes
+Script nodes have similar types:
 
-### label (optional)
+- **`script-file`:**  
+  Indicates that the script's configuration is maintained in a standalone file (stored in the Metadata Store). If you embed the configuration directly in the pipeline, omit this type.
 
-Name of the node
+- **`script-reference`:**  
+  This type is used in the pipeline configuration to refer to an external standalone script file.
 
-### dependsOn
+In both cases, scripts (whether standalone or referenced) use the following properties in addition to the common ones:
+  
+- **distribution:**  
+  An object containing a URL (`url`) where the script can be downloaded. For standalone files, this distribution information is used to retrieve the file.  
+- **arguments (in script metadata):**  
+  In the standalone script metadata, the `arguments` object can contain both simple static values (e.g., numbers, strings, booleans) and dynamic references. For dynamic values, you use an object like `{ "ref": "node_id" }`. At runtime, these placeholders are replaced with the actual resource (either a dataset node or an output from another script).
 
-Array of node ids that this node depends on. This is used to organize the run order of the nodes.
+### Dynamic Binding Through Arguments
 
-### pipeline (for dataset-derived type only)
+How does the script metadata handle arguments:
+  
+- The dynamic references are integrated directly into the `arguments` section. This means that any argument that is meant to be dynamic is provided as an object with a `ref` key.  
+- The arguments structure supports both static values and dynamic references. For example:
 
-The `url` of the pipeline that will be used to calculate this dataset.
+  ```json
+  "arguments": {
+    "input_file": { "ref": "raw_data" },
+    "supplement": { "ref": "supplemental_info" },
+    "threshold": "0.75",
+    "verbose": true
+  }
+  ```
 
-### bindings (for dataset-derived type only (optional)) 
+  In this example, `input_file` and `supplement` are dynamically resolved at runtime using the node IDs `"raw_data"` and `"supplemental_info"`. The static arguments `threshold` and `verbose` are passed as is. When parsed, the script execution will look similar this:
 
-Will be the bindings that will be used for the calculation of the referenced pipeline if it requires additional bindings. It will be an array of objects with properties:
-- `node` - the id of the node in the referenced `pipeline` that will be binded,
-- `dataset` - the id of the node in current pipeline that will be binded to `node` 
-
-### distribution
-
-An object that will have `url` property linking where will the script or dataset be downloaded from or used from.
-If the object has `distribution`, the `pipeline` and `bindings` properties will be ignored
+  ```bash
+  ./script --input_file /path/to/raw_data --supplement /path/to/supplemental_info --threshold 0.75 --verbose
+  ```
+## Architecture and Components
 
 ## Components
 
+The Data Factory is composed of four main components, each designed with a clear set of responsibilities, attempting to ensure flexibility, scalability, and adherence to FAIR principles. Below is a high-level view of each component:
+
 ### Database
 
-This component will be a simple storage with basic api interface. The datasets and scripts will be stored here. They will be referenced from the `Metadata Store`
+- **Purpose:**  
+  Acts as the persistent storage layer for standalone configuration files for datasets and scripts. Majority of files that are referenced by `distribution.url` in the pipeline configurations are stored here.
+  
+- **Key Features:**  
+  - Uses a simple NoSQL database for lightweight and efficient storage.
+  - Provides basic API endpoints for uploading, retrieving, and managing dataset and script files.
+  - Integrates with the Metadata Store, allowing file IDs or URLs to be linked within pipeline configurations.
 
-#### Implementation
-
-- Application will be written in python using FastAPI for communication. 
-- For storage a simple nosql database should suffice
-- Endpoints will be documented by open api / swagger
+- **Technology Stack:**  
+  - Developed in Python using FastAPI to expose a RESTful API.
+  - NoSQL storage.
 
 ### Metadata Store
 
-It will store:
-- The configuration file of the pipline.
-- The standalone config files of scripts and datasets
+- **Purpose:**  
+  Serves as the central repository for pipeline configurations and the standalone files that describe datasets and scripts.
+  
+- **Key Features:**  
+  - Stores JSON-based pipeline configurations, including both inline definitions and external references.
+  - Manages standalone configuration files (i.e., those with types `dataset-file` and `script-file`).
+  - Ensures interoperability by maintaining open API endpoints documented via Swagger/OpenAPI.
 
-Here all the files linked by `distribution.url` that were uploaded to `Database` will be linked to `Database`
-
-#### Implementation
-
-- The store will be created with java Spring Boot for REST API
-- Storage could be some simple nosql database
-- Endpoints will be documented by open api / swagger
+- **Technology Stack:**  
+  - Implemented using Java Spring Boot providing REST API capabilities.
+  - Uses a simple NoSQL database (or similar storage) for backend storage, complementing the Database component.
 
 ### Manager CLI
 
-This is the cli application that will be used to work with the pipeline config creation. Once the pipeline json file is created by the user. This cli can be used to validate, modify the config file to be deploy-ready and deploy this pipeline and referenced standalone dataset/script files to `Metadata Store`.
+- **Purpose:**  
+  A command-line interface tool that facilitates the creation, validation and deployment of pipeline configurations.
+  
+- **Key Features:**  
+  - **Validation:**  
+    Checks the JSON syntax and logical consistency of the pipeline configuration and standalone files. This includes verifying dependencies, types, and dynamic references.
+    
+  - **Preparation for Deployment:**  
+    - Processes local files (prefixed with `file://`) by uploading them to the Database.
+    - Modifies `distribution.url` entries in pipeline and standalone configuration files to point to the appropriate IDs from the Database.
+    - Prepares the overall configuration structure so that it’s ready for deployment via the Metadata Store.
 
-#### *Validation*
-
-As mentioned in Pipeline configuration section, this function will be making sure the basic syntax of the json is correct and all the conditional definitions make sense. This goes for the pipeline and referenced standalone files.
-
-#### *Preparing for deployment*
-
-This function will modify the pipeline json and referenced standalone files so that they can be deployed to `Metadata Store`:
-
-1. All the datasets and scripts that are stored locally (with file:// prefix), will be uploaded to `Database` and their id will be returned. User will have an option in cli to upload all the files and not only local ones (download from the mentioned distribution and upload to `Database`). 
-2. Modify the pipeline and standalone files and change all the `url` in `distribution`s that were uploaded to `Database` to the ids from `Database`. The `url` will be distinguishable with a prefix, so that it's understood by the applications that it's an id from `Database`
-
-#### *Deployment*
-
-When the pipeline and the standalone files are finally ready they will be uploaded to the `Metadata Store`
-
-### Implementation
-
-- The component will be implemented in python with typer library for user interractions
+- **Technology Stack:**  
+  - Developed in Python with Typer, ensuring a user-friendly CLI experience.
 
 ### Executor CLI
 
-Through this cli user will use the pipeline id to fetch the pipeline from `Metadata Store` and generate an orchestrator script in python. The orchestrator script will be ran through this cli. It will create and setup a docker container and copy the pipeline and orchestrator script inside it. Then run the orchestrator script.
-The root pipeline can also have bindings through cli. Meaning the pipeline is ran with --dataset-binding and --script-binding options followed by space separated bindings. Example:
+- **Purpose:**  
+  This CLI is responsible for fetching pipeline configurations from the Metadata Store, dynamically binding external references, and executing the pipeline in an isolated environment.
+  
+- **Key Features:**  
+  - **Dynamic Binding:**  
+    Binds node IDs in the pipeline (e.g., `dataset-reference` or `script-reference`) to actual standalone file IDs at runtime. For example:
+    
+    ```bash
+    executor-cli run pipeline_001 --dataset-binding raw_data=raw_data_file_id --script-binding data_cleaning=cleaning_script_file_id
+    ```
+    
+  - **Orchestration:**  
+    Generates an orchestrator script that determines the execution order based on the `dependsOn` relationships. This script handles:
+    - Fetching the necessary configuration files.
+    - Resolving dynamic arguments defined in script metadata (supporting both static values and dynamic references, e.g., `{ "ref": "raw_data" }`).
+  
+  - **Execution Environment:**  
+    Sets up a Docker container to execute the orchestrator script. The containerization ensures:
+    - Isolation from the host environment.
+    - Reproducibility of the execution context.
+  
+  - **Finalization:**  
+    Extracts the results from the Docker container after execution and performs cleanup, such as removing temporary containers.
 
-```bash
-executor-cli run pipeline_id --dataset-binding dataset-ref=the-dataset --script-binding --script-ref=the-script
-```
-
-where the `dataset-ref` is the id of the dataset with type 'dataset-reference' and `the-dataset` is the id of the standalone dataset file. Script binding works similarly
+- **Technology Stack:**  
+  - Also implemented in Python using Typer for the command-line interface.
+  - Utilizes Docker (with appropriate socket binding) for managing containerized executions.
+  - Integrates with the Metadata Store to retrieve pipeline configurations and standalone files.
 
 #### *Orchestrator script*
  
@@ -143,105 +184,13 @@ where the `dataset-ref` is the id of the dataset with type 'dataset-reference' a
    - Run the orchestrator script and save the result locally
    - Modify the config file, add `distribution` property with `url` as the local result
 
-#### *Finalization*
+### Assembly and Containerization
 
-The final result will be extracted from the docker container and the docker container will be removed.
+- **Integration:**  
+  All components are containerized using Docker. A primary Docker Compose file manages the assembly, ensuring that the Database, Metadata Store, Manager CLI, and Executor CLI are correctly networked and can communicate seamlessly.
 
-#### *Implementation*
-
-- The component will be implemented in python with typer library for user interractions
-- Will use libraries to work with docker and http requests
-
-## Assembly
-
-All the components will have Dockerfiles and will be assembled by a main docker-composer.
-
-Because the `Manager CLI` creates a docker container, to avoid creating container inside a container, the docker compose file will mound the docker socket as well.
-
-## Data schema
- 
-File dataset:
-```json
-{
-  "id": "dataset-students",
-  "type": ["dataset", "dataset-file"],
-  "distribution": {
-    "url": "https://webik.mff.cuni.cz/students/2024-2025.csv"
-  }
-}
-```
- 
-Pipeline:
-```json
-{
-  "id": "students-by-study-program",
-  "type": ["pipeline"],
-  "previousVersion": "students-by-study-program-v0",
-  "nodes": [{
-    "id": "script-filter-dw",
-    "type": ["script", "script-reference"],
-  }, {
-    "id": "input-students",
-    "type": ["dataset-reference"],
-    "label": "Students to filter"
-  }]
-}
-```
- 
-Script:
-```json
-{
-  "id": "script-filter-dw",
-  "type": ["script", "script-file"],
-  "previousVersion": "script-filter-dw-v0",
-  "distribution": {
-    "url": "https://webik.mff.cuni.cz/scripts/execute.zip"
-  },
-  // TODO Entrypoint ..
-}
-```
- 
-Run pipeline:
-```bash
-executor-cli pipeline run students-by-study-program --dataset-binding input-students=dataset-students --script-binding script-filter-dw=script-filter-dw
-```
- 
-Derived dataset:
-```json
-{
-  "id": "dw-students",
-  "type": ["dataset", "dataset-derived"],
-  "pipeline": "students-by-study-program",
-  "bindings": [{
-    "node": "input-students",
-    "dataset": "dataset-students"
-  }]
-}
-```
- 
-Compute dataset:
-```bash
-executor-cli dataset compute dw-students
-```
- 
-Derived dataset after computation:
-```json
-{
-  "id": "dw-students",
-  "type": ["dataset", "dataset-derived"],
-  "pipeline": "students-by-study-program",
-  "bindings": [{
-    "node": "input-students",
-    "dataset": "dataset-students"
-  }],
-  // NEW COMPUTED BY ...
-  "distribution": {
-    "url": "https://webik.mff.cuni.cz/students/2024-2025.csv"
-  }
-}
-```
-
-The computation most probably will be part of running pipeline instead of it being a standalone command
+- **Docker-in-Docker Considerations:**  
+  The Manager CLI is designed to handle Docker socket mounting to avoid nesting issues when creating containers from within a container.
  
 ## API abstract architecture
 
