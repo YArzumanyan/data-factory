@@ -1,12 +1,14 @@
 package cz.cuni.mff.arzumany.metadata_store.repository;
 
-import cz.cuni.mff.arzumany.metadata_store.model.PipelineVersion;
-import cz.cuni.mff.arzumany.metadata_store.model.Pipeline_Id;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import cz.cuni.mff.arzumany.metadata_store.model.Pipeline;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import java.util.List;
 import java.util.Optional;
 
-public interface PipelineRepository extends JpaRepository<PipelineVersion, Pipeline_Id> {
-    @Query("SELECT pv FROM PipelineVersion pv WHERE pv.pipelineId = ?1 ORDER BY pv.version DESC")
-    Optional<PipelineVersion> findTopByPipelineIdOrderByVersionDesc(String pipelineId);
+public interface PipelineRepository extends MongoRepository<Pipeline, String> {
+    // Find a pipeline by its unique URL
+    Optional<Pipeline> findByUrl(String url);
+
+    // Find pipelines that contain one or more of the given types
+    List<Pipeline> findByTypeIn(List<String> types);
 }

@@ -1,62 +1,54 @@
 package cz.cuni.mff.arzumany.metadata_store.controller;
 
-import cz.cuni.mff.arzumany.metadata_store.model.PipelineVersion;
+import cz.cuni.mff.arzumany.metadata_store.model.Pipeline;
 import cz.cuni.mff.arzumany.metadata_store.service.PipelineService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/pipelines")
+@RequestMapping("/api/v1/pipeline")
 public class PipelineController {
 
-    private final PipelineService service;
+    @Autowired
+    private PipelineService pipelineService;
 
-    public PipelineController(PipelineService service) {
-        this.service = service;
-    }
-
-    /**
-     * Retrieve all pipelines.
-     * Endpoint: GET /pipelines
-     */
     @GetMapping
-    public ResponseEntity<?> getAllPipelines() {
-        return ResponseEntity.ok(service.getAllPipelines());
+    public ResponseEntity<List<Pipeline>> getAllPipelines() {
+        List<Pipeline> pipelines = pipelineService.getAllPipelines();
+        return new ResponseEntity<>(pipelines, HttpStatus.OK);
     }
 
-    /**
-     * Create a new version for a given pipeline.
-     * Endpoint: POST /pipelines/{pipelineId}
-     */
-    @PostMapping("/{pipelineId}")
-    public ResponseEntity<?> createNewVersion(@PathVariable String pipelineId, @RequestBody String payload) {
-        try {
-            PipelineVersion savedVersion = service.saveNewVersion(pipelineId, payload);
-            return ResponseEntity.ok(savedVersion);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error creating new version: " + e.getMessage());
-        }
+    @GetMapping("/{id}")
+    public ResponseEntity<Pipeline> getPipelineById(@PathVariable String id) {
+        Pipeline pipeline = pipelineService.getPipelineById(id);
+        return new ResponseEntity<>(pipeline, HttpStatus.OK);
     }
 
-    /**
-     * Retrieve the latest version of a pipeline.
-     * Endpoint: GET /pipelines/{pipelineId}
-     */
-    @GetMapping("/{pipelineId}")
-    public ResponseEntity<?> getLatestVersion(@PathVariable String pipelineId) {
-        return service.getLatestVersion(pipelineId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+//    @GetMapping("/{url}")
+//    public ResponseEntity<Pipeline> getPipelineByUrl(@PathVariable String url) {
+//        Pipeline pipeline = pipelineService.getPipelineById(url);
+//        return new ResponseEntity<>(pipeline, HttpStatus.OK);
+//    }
+
+    @PostMapping
+    public ResponseEntity<Pipeline> createPipeline(@RequestBody Pipeline pipeline) {
+        Pipeline created = pipelineService.createPipeline(pipeline);
+        return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
-    /**
-     * Retrieve a specific version of a pipeline.
-     * Endpoint: GET /pipelines/{pipelineId}/versions/{version}
-     */
-    @GetMapping("/{pipelineId}/versions/{version}")
-    public ResponseEntity<?> getSpecificVersion(@PathVariable String pipelineId, @PathVariable int version) {
-        return service.getVersion(pipelineId, version)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PutMapping("/{id}")
+    public ResponseEntity<Pipeline> updatePipeline(@PathVariable String id, @RequestBody Pipeline pipeline) {
+        Pipeline updated = pipelineService.updatePipeline(id, pipeline);
+        return new ResponseEntity<>(updated, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePipeline(@PathVariable String id) {
+        pipelineService.deletePipeline(id);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }
