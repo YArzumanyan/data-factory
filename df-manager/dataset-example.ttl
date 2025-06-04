@@ -1,0 +1,14 @@
+@prefix dcat:    <http://www.w3.org/ns/dcat#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix ds:      <urn:ds:> .
+
+# Dataset resource
+ds:550e8400-e29b-41d4-a716-446655440000
+    a                   dcat:Dataset ;
+    dcterms:title       "Sample Dataset" ;
+    dcterms:description "This is a sample dataset for demonstration purposes" ;
+    dcat:distribution   [
+        a                   dcat:Distribution ;
+        dcat:accessURL      <http://artifact-repo/api/v1/objects/abc123def456> ;
+        dcat:compressFormat <http://www.iana.org/assignments/media-types/text/csv>
+    ] .

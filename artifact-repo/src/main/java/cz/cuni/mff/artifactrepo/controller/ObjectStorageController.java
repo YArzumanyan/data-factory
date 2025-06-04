@@ -99,4 +99,14 @@ public class ObjectStorageController {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error generating URL: " + e.getMessage(), e);
         }
     }
+
+    @GetMapping("dump")
+    public ResponseEntity<String> dumpObjectStorage() {
+        try {
+            String dump = objectStorageService.dumpObjectStorage();
+            return ResponseEntity.ok(dump);
+        } catch (MinioException | IOException | InvalidKeyException | NoSuchAlgorithmException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error dumping object storage: " + e.getMessage(), e);
+        }
+    }
 }

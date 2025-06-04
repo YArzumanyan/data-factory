@@ -1,0 +1,116 @@
+package cz.cuni.mff.metadata_store.controller;
+
+import cz.cuni.mff.metadata_store.service.RdfStorageService;
+import cz.cuni.mff.metadata_store.utils.RdfMediaType;
+import cz.cuni.mff.metadata_store.utils.Vocab;
+
+import java.util.NoSuchElementException;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.apache.jena.rdf.model.Model;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+
+@RestController
+@RequestMapping("/api/v1/datasets")
+@Tag(name = "Datasets", description = "Operations related to Dataset descriptions (dcat:Dataset)")
+public class DatasetController implements RdfController {
+
+    private static final Logger log = LoggerFactory.getLogger(DatasetController.class);
+
+    private final RdfStorageService rdfStorageService;
+
+    private static final String[] SUPPORTED_RDF_MEDIA_TYPES = {
+        RdfMediaType.TEXT_TURTLE_VALUE,
+        RdfMediaType.APPLICATION_LD_JSON_VALUE,
+        RdfMediaType.APPLICATION_RDF_XML_VALUE
+    };
+
+    @Override
+    public String[] getSupportedRdfMediaTypes() {
+        return SUPPORTED_RDF_MEDIA_TYPES;
+    }
+
+    @Autowired
+    public DatasetController(RdfStorageService rdfStorageService) {
+        this.rdfStorageService = rdfStorageService;
+    }
+
+    @PostMapping(consumes = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE, MediaType.TEXT_PLAIN_VALUE})
+    @Operation(summary = "Store a dataset RDF graph",
+            description = "Receives and persists a pre-validated RDF graph for a dataset (dcat:Dataset). Called by Middleware.",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Dataset RDF stored successfully", headers = @io.swagger.v3.oas.annotations.headers.Header(name = "Location", description = "URI of the created dataset resource")),
+                    @ApiResponse(responseCode = "400", description = "Malformed RDF syntax or missing dcat:Dataset resource", content = @Content),
+                    @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
+            })
+    public ResponseEntity<Void> createDataset(
+            InputStream requestBody,
+            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) {
+
+        log.debug("Attempting to parse request body with content type: {}", contentType);
+        Model datasetModel = parseRdfData(requestBody, contentType);
+
+        try {
+            String resourceUri = rdfStorageService.storeRdfGraph(datasetModel, Vocab.Dataset);
+            log.info("Dataset stored successfully with URI: {}", resourceUri);
+            return ResponseEntity.created(new URI(resourceUri)).build();
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid dataset graph provided: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (URISyntaxException e) {
+            log.error("Failed to create URI for Location header: {}", e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping(value = "/{datasetId}", produces = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
+    @Operation(summary = "Get dataset definition RDF by ID",
+            parameters = @Parameter(name = "datasetId", description = "UUID of the dataset", required = true),
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Dataset definition in requested RDF format"),
+                    @ApiResponse(responseCode = "404", description = "Dataset not found", content = @Content),
+                    @ApiResponse(responseCode = "406", description = "Unsupported Accept header format", content = @Content)
+            })
+    public ResponseEntity<String> getDataset(
+            @PathVariable String datasetId,
+            @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
+
+        try {
+            Model datasetModel = rdfStorageService.getDatasetDescription(datasetId); // Throws NoSuchElementException
+            return formatRdfResponse(datasetModel, acceptHeader);
+        } catch (NoSuchElementException e) {
+            log.warn("Dataset not found for ID: {}", datasetId);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        }
+    }
+
+    @GetMapping(produces = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
+    @Operation(summary = "List all datasets as an RDF graph",
+            description = "Retrieves an RDF graph containing descriptions of all registered datasets (dcat:Dataset).",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "RDF graph containing all dcat:Dataset resources"),
+                    @ApiResponse(responseCode = "406", description = "Unsupported Accept header format", content = @Content)
+            })
+    public ResponseEntity<String> listDatasets(
+            @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
+
+        Model listModel = rdfStorageService.listResources(Vocab.Dataset);
+        return formatRdfResponse(listModel, acceptHeader);
+    }
+}

@@ -4,6 +4,7 @@ import io.minio.*;
 import io.minio.errors.ErrorResponseException;
 import io.minio.errors.MinioException;
 import io.minio.http.Method;
+import io.minio.messages.Item;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,10 @@ public class ObjectStorageService {
     @Value("${minio.bucketName}")
     private String bucketName;
 
+    /**
+     * Ensures that the configured bucket exists. If it does not exist, it creates the bucket.
+     * This method is called after the service is initialized.
+     */
     @PostConstruct
     private void ensureBucketExists() {
         try {
@@ -45,6 +50,16 @@ public class ObjectStorageService {
         }
     }
 
+    /**
+     * Stores an object in the configured bucket and generates a unique ID for it.
+     *
+     * @param file The file to store.
+     * @return The generated object ID.
+     * @throws MinioException If there is an error communicating with MinIO.
+     * @throws IOException If there is an IO error.
+     * @throws InvalidKeyException If the provided key is invalid.
+     * @throws NoSuchAlgorithmException If the specified algorithm does not exist.
+     */
     public String storeObject(MultipartFile file) throws MinioException, IOException, InvalidKeyException, NoSuchAlgorithmException {
         String objectId = UUID.randomUUID().toString();
 
@@ -65,6 +80,16 @@ public class ObjectStorageService {
         }
     }
 
+    /**
+     * Fetches an object from the configured bucket.
+     *
+     * @param objectId The ID of the object to fetch.
+     * @return An InputStream for the object, or null if the object does not exist.
+     * @throws MinioException If there is an error communicating with MinIO.
+     * @throws IOException If there is an IO error.
+     * @throws InvalidKeyException If the provided key is invalid.
+     * @throws NoSuchAlgorithmException If the specified algorithm does not exist.
+     */
     public InputStream fetchObject(String objectId) throws MinioException, IOException, InvalidKeyException, NoSuchAlgorithmException {
         try {
             return minioClient.getObject(
@@ -86,6 +111,16 @@ public class ObjectStorageService {
         }
     }
 
+    /**
+     * Retrieves metadata for an object in the configured bucket.
+     *
+     * @param objectId The ID of the object to retrieve metadata for.
+     * @return The metadata of the object, or null if the object does not exist.
+     * @throws MinioException If there is an error communicating with MinIO.
+     * @throws IOException If there is an IO error.
+     * @throws InvalidKeyException If the provided key is invalid.
+     * @throws NoSuchAlgorithmException If the specified algorithm does not exist.
+     */
     public StatObjectResponse getObjectMetadata(String objectId) throws MinioException, IOException, InvalidKeyException, NoSuchAlgorithmException {
         try {
             return minioClient.statObject(
@@ -107,6 +142,17 @@ public class ObjectStorageService {
         }
     }
 
+    /**
+     * Generates a presigned URL for downloading an object.
+     *
+     * @param objectId The ID of the object to generate the URL for.
+     * @param expirySeconds The number of seconds until the URL expires.
+     * @return A presigned URL for the object.
+     * @throws MinioException If there is an error communicating with MinIO.
+     * @throws IOException If there is an IO error.
+     * @throws InvalidKeyException If the provided key is invalid.
+     * @throws NoSuchAlgorithmException If the specified algorithm does not exist.
+     */
     public String getPresignedUrlForGet(String objectId, int expirySeconds) throws MinioException, IOException, InvalidKeyException, NoSuchAlgorithmException {
         try {
             return minioClient.getPresignedObjectUrl(
@@ -123,6 +169,15 @@ public class ObjectStorageService {
         }
     }
 
+    /**
+     * Deletes an object from the configured bucket.
+     *
+     * @param objectId The ID of the object to delete.
+     * @throws MinioException If there is an error communicating with MinIO.
+     * @throws IOException If there is an IO error.
+     * @throws InvalidKeyException If the provided key is invalid.
+     * @throws NoSuchAlgorithmException If the specified algorithm does not exist.
+     */
     public void deleteObject(String objectId) throws MinioException, IOException, InvalidKeyException, NoSuchAlgorithmException {
         try {
             minioClient.removeObject(
@@ -144,6 +199,47 @@ public class ObjectStorageService {
         }
     }
 
+    // dumpObjectStorage();
+    /**
+     * Dumps the contents of the configured bucket.
+     *
+     * @return A string representation of the bucket contents.
+     * @throws MinioException If there is an error communicating with MinIO.
+     * @throws IOException If there is an IO error.
+     * @throws InvalidKeyException If the provided key is invalid.
+     * @throws NoSuchAlgorithmException If the specified algorithm does not exist.
+     */
+    public String dumpObjectStorage() throws MinioException, IOException, InvalidKeyException, NoSuchAlgorithmException {
+        StringBuilder dump = new StringBuilder("Bucket: " + bucketName + "\n");
+        try {
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(bucketName)
+                            .build());
+
+            for (Result<Item> result : results) {
+                Item item = result.get();
+                dump.append("Object ID: ").append(item.objectName())
+                        .append(", Size: ").append(item.size())
+                        .append(", Last Modified: ").append(item.lastModified())
+                        .append("\n");
+            }
+            return dump.toString();
+        } catch (Exception e) {
+            logger.error("Error dumping object storage: {}", e.getMessage(), e);
+            throw new RuntimeException("Error during object storage dump: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Handles exceptions by logging them and throwing appropriate exceptions.
+     *
+     * @param e The exception to handle.
+     * @throws MinioException If the exception is a MinIO-specific error.
+     * @throws IOException If the exception is an IO error.
+     * @throws InvalidKeyException If the exception is due to an invalid key.
+     * @throws NoSuchAlgorithmException If the exception is due to a non-existent algorithm.
+     */
     private void errorHandler(Exception e) throws MinioException, IOException, InvalidKeyException, NoSuchAlgorithmException {
         switch (e) {
             case MinioException minioException -> {

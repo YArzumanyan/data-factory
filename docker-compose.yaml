@@ -1,0 +1,72 @@
+services:
+  minio:
+    image: minio/minio
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  artifact-repo:
+    build:
+      context: ./artifact-repo/
+      dockerfile: Dockerfile
+    container_name: artifact-repo
+    ports:
+      - "8081:8080"
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  metadata-store:
+    build:
+      context: ./metadata-store/
+      dockerfile: Dockerfile
+    container_name: metadata-store
+    ports:
+      - "8082:8080"
+    environment:
+      - JENA_TDB2_LOCATION=${JENA_TDB2_LOCATION}
+      - METADATA_STORE_BASE_URI=${METADATA_STORE_BASE_URI}
+    volumes:
+      - metadata-store-data:/app/data
+    restart: unless-stopped
+
+  df-manager:
+    build:
+      context: ./df-manager/
+      dockerfile: Dockerfile
+    container_name: df-manager
+    ports:
+      - "8083:8080"
+    environment:
+      METADATA_STORE_BASE_URL: http://metadata-store:8080
+      ARTIFACT_REPOSITORY_BASE_URL: http://artifact-repo:8080
+      RDF_NAMESPACE_DF: ${RDF_NAMESPACE_DF:-http://localhost:8080/ns/df#}
+      RDF_NAMESPACE_PIPE: ${RDF_NAMESPACE_PIPE:-urn:pipe:}
+      RDF_NAMESPACE_STEP: ${RDF_NAMESPACE_STEP:-urn:step:}
+      RDF_NAMESPACE_VAR: ${RDF_NAMESPACE_VAR:-urn:var:}
+      RDF_NAMESPACE_DS: ${RDF_NAMESPACE_DS:-urn:ds:}
+      RDF_NAMESPACE_PL: ${RDF_NAMESPACE_PL:-urn:pl:}
+    depends_on:
+      - metadata-store
+      - artifact-repo
+
+volumes:
+  minio_data:
+  metadata-store-data:
+    name: metadata-store-data

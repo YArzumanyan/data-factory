@@ -1,0 +1,31 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix p-plan: <http://purl.org/net/p-plan#> .
+@prefix ldp: <http://www.w3.org/ns/ldp#> .
+@prefix df: <http://localhost:8080/ns/df#> .
+
+df: a owl:Ontology ;
+    rdfs:label "Custom Data Flow Vocabulary"@en ;
+    rdfs:comment "Defines concepts specific to the data processing flow, primarily Plugins."@en ;
+    owl:versionInfo "0.1" .
+
+df:Plugin a rdfs:Class ;
+          rdfs:label "Plugin"@en ;
+          rdfs:comment "Represents a configurable and reusable software component (plugin) used within a data processing pipeline step."@en ;
+          rdfs:subClassOf dcat:Resource ;
+          rdfs:isDefinedBy df: .
+
+df:usesPlugin a rdf:Property ;
+              rdfs:label "uses plugin"@en ;
+              rdfs:comment "Relates a pipeline step to the specific plugin implementation it utilizes."@en ;
+              rdfs:domain p-plan:Step ;
+              rdfs:range df:Plugin ;
+              rdfs:isDefinedBy df: .
+
+df:root  rdf:type      ldp:BasicContainer, dcat:Catalog ;
+         dcterms:title  "Metadata Store Root (df:root)"@en ;
+         dcterms:description "Root of the metadata store, containing all metadata related to data processing."@en .

@@ -1,0 +1,274 @@
+package cz.cuni.mff.metadata_store.service;
+
+import cz.cuni.mff.metadata_store.utils.Vocab; // Import the Vocab constants
+import java.util.NoSuchElementException;
+import jakarta.annotation.PostConstruct;
+import org.apache.jena.query.*;
+import org.apache.jena.rdf.model.*;
+import org.apache.jena.shared.Lock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Implementation of RdfStorageService using Jena TDB2 Dataset.
+ */
+@Service
+public class RdfStorageServiceImpl implements RdfStorageService {
+
+    private static final Logger log = LoggerFactory.getLogger(RdfStorageServiceImpl.class);
+
+    private final Dataset dataset;
+    private final UriService uriService;
+
+    @Autowired
+    public RdfStorageServiceImpl(Dataset dataset, UriService uriService) {
+        this.dataset = dataset;
+        this.uriService = uriService;
+    }
+
+//    @PostConstruct
+//    private void initialize() {
+//        ensureRootContainerExists();
+//    }
+//
+//    /**
+//     * Ensures the LDP root container resource (Vocab.RootContainer) exists in the dataset.
+//     */
+//    private void ensureRootContainerExists() {
+//        // Use the constant Resource from Vocab
+//        Resource root = Vocab.RootContainer;
+//        String rootUri = root.getURI(); // Get URI string for logging/comparison if needed
+//
+//        dataset.executeWrite(() -> {
+//            Model model = dataset.getDefaultModel();
+//            // Re-fetch resource within the transaction model context
+//            Resource rootInModel = model.createResource(rootUri);
+//            if (!model.contains(rootInModel, Vocab.type, Vocab.BasicContainer)) {
+//                log.info("Creating LDP root container: {}", rootUri);
+//                rootInModel.addProperty(Vocab.type, Vocab.BasicContainer);
+//                // Use a label specific to the df:root identifier
+//                rootInModel.addProperty(Vocab.title, model.createLiteral("Metadata Store Root (df:root)", "en"));
+//            }
+//        });
+//    }
+
+    @Override
+    public String storeRdfGraph(Model rdfModel, Resource expectedResourceType) {
+        if (rdfModel == null || rdfModel.isEmpty()) {
+            throw new IllegalArgumentException("Input RDF model cannot be null or empty.");
+        }
+
+        List<Resource> potentialSubjects = rdfModel.listSubjectsWithProperty(Vocab.type, expectedResourceType).toList();
+
+        if (potentialSubjects.isEmpty()) {
+            throw new IllegalArgumentException("Input RDF model does not contain a resource of type: " + expectedResourceType.getURI());
+        }
+
+        Resource primaryResource = potentialSubjects.getFirst();
+        if (!primaryResource.isURIResource()) {
+            throw new IllegalArgumentException("Primary resource found is not a URI resource: " + primaryResource);
+        }
+        String primaryResourceUri = primaryResource.getURI();
+        log.debug("Identified primary resource URI: {}", primaryResourceUri);
+
+
+        dataset.executeWrite(() -> {
+            log.info("Storing RDF graph for resource: {}", primaryResourceUri);
+            Model defaultModel = dataset.getDefaultModel();
+            defaultModel.add(rdfModel);
+
+            if (expectedResourceType.equals(Vocab.Dataset) || expectedResourceType.equals(Vocab.Plugin)) {
+                Resource rootInModel = defaultModel.getResource(Vocab.RootContainer.getURI());
+                Resource primaryResInModel = defaultModel.getResource(primaryResourceUri);
+
+                if (!defaultModel.contains(rootInModel, Vocab.contains, primaryResInModel)) {
+                    log.debug("Adding ldp:contains triple for {} to root container {}", primaryResourceUri, Vocab.RootContainer.getURI());
+                    rootInModel.addProperty(Vocab.contains, primaryResInModel);
+                }
+            }
+        });
+
+        log.info("Successfully stored RDF graph for: {}", primaryResourceUri);
+        return primaryResourceUri;
+    }
+
+    @Override
+    public Optional<Model> getGenericResourceDescription(String resourceUuid) {
+        log.debug("Searching for resource with UUID: {}", resourceUuid);
+
+        String pipelineUri = uriService.buildPipelineUri(resourceUuid);
+        String datasetUri = uriService.buildDatasetUri(resourceUuid);
+        String pluginUri = uriService.buildPluginUri(resourceUuid);
+
+        Model resultModel = ModelFactory.createDefaultModel();
+
+        dataset.executeRead(() -> {
+            Model defaultModel = dataset.getDefaultModel();
+            Resource pipelineRes = defaultModel.getResource(pipelineUri);
+            Resource datasetRes = defaultModel.getResource(datasetUri);
+            Resource pluginRes = defaultModel.getResource(pluginUri);
+
+            if (defaultModel.containsResource(pipelineRes)) {
+                resultModel.add(describeResource(pipelineRes.getURI()));
+                log.debug("Found resource as pipeline: {}", pipelineUri);
+            } else if (defaultModel.containsResource(datasetRes)) {
+                resultModel.add(describeResource(datasetRes.getURI()));
+                log.debug("Found resource as dataset: {}", datasetUri);
+            } else if (defaultModel.containsResource(pluginRes)) {
+                resultModel.add(describeResource(pluginRes.getURI()));
+                log.debug("Found resource as plugin: {}", pluginUri);
+            }
+        });
+
+        if (resultModel.isEmpty()) {
+            log.debug("Resource not found with known types, trying general UUID search");
+
+            String queryString = """
+                PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+                CONSTRUCT { ?s ?p ?o }
+                WHERE {
+                  ?s ?p ?o .
+                  FILTER(STRENDS(STR(?s), "%s"))
+                }
+                """.formatted(resourceUuid);
+
+            dataset.executeRead(() -> {
+                try (QueryExecution qExec = QueryExecutionFactory.create(queryString, dataset)) {
+                    Model queryResult = qExec.execConstruct();
+                    if (!queryResult.isEmpty()) {
+                        resultModel.add(queryResult);
+                        log.debug("Found resource with general UUID search: {}", resourceUuid);
+                    }
+                } catch (Exception e) {
+                    log.error("Error executing general UUID search for {}", resourceUuid, e);
+                }
+            });
+        }
+
+        return resultModel.isEmpty() ? Optional.empty() : Optional.of(resultModel);
+    }
+
+    @Override
+    public Model getPipelineDescription(String pipelineUuid) throws NoSuchElementException {
+        String resourceUri = uriService.buildPipelineUri(pipelineUuid);
+        return describeResourceOrThrow(resourceUri, pipelineUuid);
+    }
+
+    @Override
+    public Model getDatasetDescription(String datasetUuid) throws NoSuchElementException {
+        String resourceUri = uriService.buildDatasetUri(datasetUuid);
+        return describeResourceOrThrow(resourceUri, datasetUuid);
+    }
+
+    @Override
+    public Model getPluginDescription(String pluginUuid) throws NoSuchElementException {
+        String resourceUri = uriService.buildPluginUri(pluginUuid);
+        return describeResourceOrThrow(resourceUri, pluginUuid);
+    }
+
+    // Helper for typed get methods
+    private Model describeResourceOrThrow(String resourceUri, String uuid) throws NoSuchElementException {
+        Model model = describeResource(resourceUri);
+        if (model.isEmpty()) {
+            throw new NoSuchElementException("Resource with UUID " + uuid + " (URI: " + resourceUri + ") not found.");
+        }
+        return model;
+    }
+
+
+    /**
+     * Helper method to get the description of a resource using SPARQL CONSTRUCT.
+     * Retrieves triples where the resource is the subject.
+     * Includes outbound links but limited depth for blank nodes by default CONSTRUCT behavior.
+     * @param resourceUri The full URI of the resource.
+     * @return A Model containing the resource description, empty if not found.
+     */
+    private Model describeResource(String resourceUri) {
+        String queryString = """
+                 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+                 CONSTRUCT { ?s ?p ?o }
+                 WHERE {
+                   BIND(<%s> AS ?s)
+                   ?s ?p ?o .
+                 }
+                 """.formatted(resourceUri);
+
+        log.debug("Executing CONSTRUCT query for resource: {}", resourceUri);
+        final Model resultModel = ModelFactory.createDefaultModel();
+
+        dataset.executeRead(() -> {
+            try (QueryExecution qExec = QueryExecutionFactory.create(queryString, dataset)) {
+                qExec.execConstruct(resultModel); // Populate the result model directly
+            } catch (Exception e) {
+                log.error("Error executing CONSTRUCT query for {}", resourceUri, e);
+            }
+        });
+
+        if (resultModel.isEmpty()) {
+            log.debug("No triples found for resource: {}", resourceUri);
+        } else {
+            resultModel.setNsPrefixes(dataset.getDefaultModel().getNsPrefixMap());
+            log.debug("Found {} triples describing resource: {}", resultModel.size(), resourceUri);
+        }
+        return resultModel;
+    }
+
+
+    @Override
+    public Model listResources(Resource resourceType) {
+        String queryString = """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX dcat: <http://www.w3.org/ns/dcat#>
+            PREFIX df: <http://example.org/ns/df#>
+
+            CONSTRUCT { ?s ?p ?o }
+            WHERE {
+              ?s rdf:type <%s> .
+              ?s ?p ?o .
+            }
+            """.formatted(resourceType.getURI());
+
+        log.info("Executing CONSTRUCT query to list resources of type: {}", resourceType.getURI());
+        final Model resultModel = ModelFactory.createDefaultModel();
+
+        dataset.executeRead(() -> {
+            try (QueryExecution qExec = QueryExecutionFactory.create(queryString, dataset)) {
+                qExec.execConstruct(resultModel);
+            } catch (Exception e) {
+                log.error("Error executing CONSTRUCT query for listing type {}", resourceType.getURI(), e);
+            }
+        });
+        resultModel.setNsPrefixes(dataset.getDefaultModel().getNsPrefixMap()); // Copy prefixes
+        log.info("Found {} resources of type {}", resultModel.listSubjectsWithProperty(Vocab.type, resourceType).toList().size(), resourceType.getURI());
+        return resultModel;
+    }
+
+
+    @Override
+    public Model getRootContainerDescription() {
+        log.debug("Getting LDP root container description for: {}", Vocab.RootContainer.getURI());
+        return describeResource(Vocab.RootContainer.getURI());
+    }
+
+    @Override
+    public Model getEntireStoreModel() {
+        log.info("Retrieving entire default graph from the store.");
+        final Model storeModelCopy = ModelFactory.createDefaultModel();
+
+        dataset.executeRead(() -> {
+            Model defaultModel = dataset.getDefaultModel();
+            storeModelCopy.setNsPrefixes(defaultModel.getNsPrefixMap());
+            storeModelCopy.add(defaultModel);
+        });
+
+        log.info("Retrieved {} triples from the default graph.", storeModelCopy.size());
+        return storeModelCopy;
+    }
+
+}
