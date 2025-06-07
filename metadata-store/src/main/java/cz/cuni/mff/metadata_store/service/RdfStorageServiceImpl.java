@@ -154,28 +154,36 @@ public class RdfStorageServiceImpl implements RdfStorageService {
     @Override
     public Model getPipelineDescription(String pipelineUuid) throws NoSuchElementException {
         String resourceUri = uriService.buildPipelineUri(pipelineUuid);
-        return describeResourceOrThrow(resourceUri, pipelineUuid);
+        return describeResourceOrThrow(resourceUri);
     }
 
     @Override
     public Model getDatasetDescription(String datasetUuid) throws NoSuchElementException {
         String resourceUri = uriService.buildDatasetUri(datasetUuid);
-        return describeResourceOrThrow(resourceUri, datasetUuid);
+        return describeResourceOrThrow(resourceUri);
     }
 
     @Override
     public Model getPluginDescription(String pluginUuid) throws NoSuchElementException {
         String resourceUri = uriService.buildPluginUri(pluginUuid);
-        return describeResourceOrThrow(resourceUri, pluginUuid);
+        return describeResourceOrThrow(resourceUri);
     }
 
     // Helper for typed get methods
-    private Model describeResourceOrThrow(String resourceUri, String uuid) throws NoSuchElementException {
-        Model model = describeResource(resourceUri);
-        if (model.isEmpty()) {
-            throw new NoSuchElementException("Resource with UUID " + uuid + " (URI: " + resourceUri + ") not found.");
-        }
-        return model;
+    private Model describeResourceOrThrow(String resourceUri) throws NoSuchElementException {
+        final Model resourceModel = ModelFactory.createDefaultModel();
+        dataset.executeRead(() -> {
+            Model model = dataset.getDefaultModel();
+            Resource resource = model.getResource(resourceUri);
+            if (resource == null) {
+                log.warn("Resource not found: {}", resourceUri);
+                throw new NoSuchElementException("Resource with URI " + resourceUri + " not found.");
+            }
+            resourceModel.add(describeResource(resourceUri));
+        });
+
+        log.debug("Found {} triples describing resource: {}", resourceModel.size(), resourceUri);
+        return resourceModel;
     }
 
 
@@ -189,10 +197,17 @@ public class RdfStorageServiceImpl implements RdfStorageService {
     private Model describeResource(String resourceUri) {
         String queryString = """
                  PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-                 CONSTRUCT { ?s ?p ?o }
+                 CONSTRUCT {
+                   ?s ?p ?o .
+                   ?o ?p2 ?o2 .
+                 }
                  WHERE {
                    BIND(<%s> AS ?s)
                    ?s ?p ?o .
+                   OPTIONAL {
+                     FILTER(ISBLANK(?o))
+                     ?o ?p2 ?o2 .
+                   }
                  }
                  """.formatted(resourceUri);
 
@@ -267,5 +282,4 @@ public class RdfStorageServiceImpl implements RdfStorageService {
         log.info("Retrieved {} triples from the default graph.", storeModelCopy.size());
         return storeModelCopy;
     }
-
 }

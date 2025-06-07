@@ -49,6 +49,7 @@ public class VocabularyLoader implements ApplicationListener<ContextRefreshedEve
         log.info("Attempting to load vocabulary from classpath:{}", VOCAB_PATH);
         dataset.executeWrite(() -> {
             try (InputStream vocabStream = vocabResource.getInputStream()) {
+                // add
                 Model defaultModel = dataset.getDefaultModel();
                 if (defaultModel.isEmpty()) {
                     RDFDataMgr.read(defaultModel, vocabStream, RDFLanguages.TURTLE);

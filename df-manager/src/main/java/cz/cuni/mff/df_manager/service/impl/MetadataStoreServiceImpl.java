@@ -39,20 +39,12 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
 
         HttpEntity<String> requestEntity = new HttpEntity<>(rdfData, headers);
 
-        String endpoint;
-        switch (resourceType) {
-            case "ds":
-                endpoint = datasetsEndpoint;
-                break;
-            case "pl":
-                endpoint = pluginsEndpoint;
-                break;
-            case "pipe":
-                endpoint = pipelinesEndpoint;
-                break;
-            default:
-                throw new IllegalArgumentException("Unknown resource type: " + resourceType);
-        }
+        String endpoint = switch (resourceType) {
+            case "ds" -> datasetsEndpoint;
+            case "pl" -> pluginsEndpoint;
+            case "pipe" -> pipelinesEndpoint;
+            default -> throw new IllegalArgumentException("Unknown resource type: " + resourceType);
+        };
 
         ResponseEntity<String> response = restTemplate.postForEntity(
                 endpoint,
@@ -65,23 +57,16 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
 
     @Override
     public String getResourceRdf(String resourceType, String uuid) {
-        String url;
+        String url = switch (resourceType) {
+            case "ds" -> datasetsEndpoint + "/" + uuid;
+            case "pl" -> pluginsEndpoint + "/" + uuid;
+            case "pipe" -> pipelinesEndpoint + "/" + uuid;
+            default ->
+                // Fall back to generic resources endpoint
+                    resourcesEndpoint + "/" + uuid;
+        };
 
         // Use specific endpoints for known resource types
-        switch (resourceType) {
-            case "ds":
-                url = datasetsEndpoint + "/" + uuid;
-                break;
-            case "pl":
-                url = pluginsEndpoint + "/" + uuid;
-                break;
-            case "pipe":
-                url = pipelinesEndpoint + "/" + uuid;
-                break;
-            default:
-                // Fall back to generic resources endpoint
-                url = resourcesEndpoint + "/" + uuid;
-        }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(java.util.Collections.singletonList(RdfMediaType.TEXT_TURTLE));
@@ -100,23 +85,16 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
 
     @Override
     public boolean resourceExists(String resourceType, String uuid) {
-        String url;
+        String url = switch (resourceType) {
+            case "ds" -> datasetsEndpoint + "/" + uuid;
+            case "pl" -> pluginsEndpoint + "/" + uuid;
+            case "pipe" -> pipelinesEndpoint + "/" + uuid;
+            default ->
+                // Fall back to generic resources endpoint
+                    resourcesEndpoint + "/" + uuid;
+        };
 
         // Use specific endpoints for known resource types
-        switch (resourceType) {
-            case "ds":
-                url = datasetsEndpoint + "/" + uuid;
-                break;
-            case "pl":
-                url = pluginsEndpoint + "/" + uuid;
-                break;
-            case "pipe":
-                url = pipelinesEndpoint + "/" + uuid;
-                break;
-            default:
-                // Fall back to generic resources endpoint
-                url = resourcesEndpoint + "/" + uuid;
-        }
 
         try {
             ResponseEntity<Void> response = restTemplate.exchange(

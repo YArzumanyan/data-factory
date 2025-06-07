@@ -7,6 +7,7 @@ import cz.cuni.mff.df_manager.service.RdfService;
 import cz.cuni.mff.df_manager.utils.RdfMediaType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,7 +37,7 @@ public class PluginController {
      * @return RDF data for the created plugin
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = RdfMediaType.TEXT_TURTLE_VALUE)
-    public ResponseEntity<RdfResponse> uploadPlugin(
+    public ResponseEntity<String> uploadPlugin(
             @RequestParam("file") MultipartFile file,
             @RequestParam("title") String title,
             @RequestParam(value = "description", required = false) String description) {
@@ -56,9 +57,9 @@ public class PluginController {
             String rdfData = rdfService.generatePluginRdf(title, description, artifactId, fileExtension);
 
             // Submit RDF to metadata store
-            metadataStoreService.submitRdf("pl", rdfData);
+            String response = metadataStoreService.submitRdf("pl", rdfData);
 
-            return ResponseEntity.ok(new RdfResponse(rdfData));
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
             log.error("Error uploading plugin", e);
             return ResponseEntity.badRequest().build();

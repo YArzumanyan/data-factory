@@ -7,6 +7,7 @@ import cz.cuni.mff.df_manager.service.RdfService;
 import cz.cuni.mff.df_manager.utils.RdfMediaType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,7 +37,7 @@ public class DatasetController {
      * @return RDF data for the created dataset
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = RdfMediaType.TEXT_TURTLE_VALUE)
-    public ResponseEntity<RdfResponse> uploadDataset(
+    public ResponseEntity<String> uploadDataset(
             @RequestParam("file") MultipartFile file,
             @RequestParam("title") String title,
             @RequestParam(value = "description", required = false) String description) {
@@ -54,11 +55,13 @@ public class DatasetController {
 
             // Generate RDF for dataset
             String rdfData = rdfService.generateDatasetRdf(title, description, artifactId, fileExtension);
+            log.info("Generated RDF for dataset: {}", rdfData);
 
             // Submit RDF to metadata store
-            metadataStoreService.submitRdf("ds", rdfData);
+            String response = metadataStoreService.submitRdf("ds", rdfData);
 
-            return ResponseEntity.ok(new RdfResponse(rdfData));
+            log.info("Dataset RDF stored successfully, response: {}", response);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
             log.error("Error uploading dataset", e);
             return ResponseEntity.badRequest().build();

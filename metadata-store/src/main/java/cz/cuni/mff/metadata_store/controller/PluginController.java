@@ -57,7 +57,7 @@ public class PluginController implements RdfController {
                     @ApiResponse(responseCode = "400", description = "Malformed RDF syntax or missing df:Plugin resource", content = @Content),
                     @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
             })
-    public ResponseEntity<Void> createPlugin(
+    public ResponseEntity<String> createPlugin(
             InputStream requestBody,
             @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) {
 
@@ -67,13 +67,10 @@ public class PluginController implements RdfController {
         try {
             String resourceUri = rdfStorageService.storeRdfGraph(pluginModel, Vocab.Plugin);
             log.info("Plugin stored successfully with URI: {}", resourceUri);
-            return ResponseEntity.created(new URI(resourceUri)).build();
+            return ResponseEntity.status(HttpStatus.CREATED).body(resourceUri);
         } catch (IllegalArgumentException e) {
             log.warn("Invalid plugin graph provided: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
-        } catch (URISyntaxException e) {
-            log.error("Failed to create URI for Location header: {}", e.getMessage());
-            return ResponseEntity.internalServerError().build();
         }
     }
 

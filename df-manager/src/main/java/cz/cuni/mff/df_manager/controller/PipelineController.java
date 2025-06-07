@@ -8,6 +8,7 @@ import cz.cuni.mff.df_manager.utils.RdfMediaType;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -35,7 +36,7 @@ public class PipelineController {
      * @return RDF data for the created pipeline
      */
     @PostMapping(produces = RdfMediaType.TEXT_TURTLE_VALUE)
-    public ResponseEntity<RdfResponse> createPipeline(@Valid @RequestBody PipelineConfig pipelineConfig) {
+    public ResponseEntity<String> createPipeline(@Valid @RequestBody PipelineConfig pipelineConfig) {
         log.info("Creating pipeline: {}", pipelineConfig.getTitle());
 
         try {
@@ -43,9 +44,9 @@ public class PipelineController {
             String rdfData = rdfService.generatePipelineRdf(pipelineConfig);
 
             // Submit RDF to metadata store
-            metadataStoreService.submitRdf("pipe", rdfData);
+            String response = metadataStoreService.submitRdf("pipe", rdfData);
 
-            return ResponseEntity.ok(new RdfResponse(rdfData));
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
             // This is for validation errors (e.g., referenced dataset/plugin doesn't exist)
             log.error("Validation error creating pipeline", e);

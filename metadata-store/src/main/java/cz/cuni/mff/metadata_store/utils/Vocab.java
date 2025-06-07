@@ -10,13 +10,16 @@ import org.apache.jena.rdf.model.ResourceFactory;
 public final class Vocab {
 
     // --- Namespaces ---
-    private static final String DCAT_NS = "http://www.w3.org/ns/dcat#";
-    private static final String DCTERMS_NS = "http://purl.org/dc/terms/";
-    private static final String PPLAN_NS = "http://purl.org/net/p-plan#";
-    private static final String PROV_NS = "http://www.w3.org/ns/prov#";
-    private static final String LDP_NS = "http://www.w3.org/ns/ldp#";
-    private static final String RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
-    private static final String DF_NS = "http://localhost:8080/ns/df#";
+    public static final String DCAT_NS = "http://www.w3.org/ns/dcat#";
+    public static final String DCTERMS_NS = "http://purl.org/dc/terms/";
+    public static final String PPLAN_NS = "http://purl.org/net/p-plan#";
+    public static final String PROV_NS = "http://www.w3.org/ns/prov#";
+    public static final String LDP_NS = "http://www.w3.org/ns/ldp#";
+    public static final String RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+    public static final String DF_NS = "http://localhost:8080/ns/df#";
+    public static final String DS_NS = "http://localhost:8080/ns/ds#";
+    public static final String PL_NS = "http://localhost:8080/ns/pl#";
+    public static final String PIPE_NS = "http://localhost:8080/ns/pipe#";
 
     // --- Classes ---
     public static final Resource Dataset = ResourceFactory.createResource(DCAT_NS + "Dataset");

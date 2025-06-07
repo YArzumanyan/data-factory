@@ -34,7 +34,64 @@ class MiddlewareClient:
     def __init__(self, base_url: str = "http://localhost:8080"):
         self.base_url = base_url.rstrip('/')
         self.session = requests.Session()
-    
+
+    def _post_file(self, file_path: Path, title: str, description: str, endpoint: str, item_name: str) -> Optional[str]:
+        """
+        Helper method to post a file to the middleware.
+        
+        Args:
+            file_path: Path to the file.
+            title: Title for the item.
+            description: Description for the item.
+            endpoint: API endpoint (e.g., "datasets", "plugins").
+            item_name: Name of the item for messages (e.g., "dataset", "plugin").
+            
+        Returns:
+            UUID of the created item on success, None on failure.
+        """
+        if not file_path.exists():
+            console.print(f"[red]✗ File {file_path} does not exist[/red]")
+            return None
+        
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        if not content_type:
+            content_type = 'application/octet-stream'
+        
+        try:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console
+            ) as progress:
+                task_description = f"Uploading {item_name}..."
+                task = progress.add_task(task_description, total=None)
+                
+                with open(file_path, 'rb') as f:
+                    files = {'file': (file_path.name, f, content_type)}
+                    data = {'title': title, 'description': description}
+                    
+                    url = f"{self.base_url}/api/v1/{endpoint}"
+                    response = self.session.post(url, files=files, data=data)
+                
+                progress.remove_task(task)
+                
+                if response.status_code == 201:
+                    uri = response.text
+                    uuid = uri.split('/')[-1]
+                    console.print(f"[dim]full uri: {uri}[/dim]")
+                    console.print(f"[green]✓ {item_name.capitalize()} created successfully with UUID: {uuid}[/green]")
+                    return uri
+                else:
+                    console.print(f"[red]✗ Failed to create {item_name}: {response.status_code} - {response.text}[/red]")
+                    return None
+                    
+        except requests.RequestException as e:
+            console.print(f"[red]✗ Network error posting {item_name}: {e}[/red]")
+            return None
+        except Exception as e:
+            console.print(f"[red]✗ Error posting {item_name}: {e}[/red]")
+            return None
+
     def post_dataset(self, file_path: Path, title: str, description: str) -> Optional[str]:
         """
         Post a dataset file to the middleware
@@ -47,102 +104,21 @@ class MiddlewareClient:
         Returns:
             UUID of the created dataset on success, None on failure
         """
-        if not file_path.exists():
-            console.print(f"[red]✗ File {file_path} does not exist[/red]")
-            return None
-        
-        # Determine content type
-        content_type, _ = mimetypes.guess_type(str(file_path))
-        if not content_type:
-            content_type = 'application/octet-stream'
-        
-        try:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console
-            ) as progress:
-                task = progress.add_task("Uploading dataset...", total=None)
-                
-                with open(file_path, 'rb') as f:
-                    files = {
-                        'file': (file_path.name, f, content_type)
-                    }
-                    data = {
-                        'title': title,
-                        'description': description
-                    }
-                    
-                    url = f"{self.base_url}/api/v1/datasets"
-                    response = self.session.post(url, files=files, data=data)
-                
-                progress.remove_task(task)
-                
-                if response.status_code == 201:
-                    result = response.json()
-                    uuid = result.get('uuid')
-                    console.print(f"[green]✓ Dataset created successfully with UUID: {uuid}[/green]")
-                    return uuid
-                else:
-                    console.print(f"[red]✗ Failed to create dataset: {response.status_code} - {response.text}[/red]")
-                    return None
-                    
-        except requests.RequestException as e:
-            console.print(f"[red]✗ Network error posting dataset: {e}[/red]")
-            return None
-        except Exception as e:
-            console.print(f"[red]✗ Error posting dataset: {e}[/red]")
-            return None
+        return self._post_file(file_path, title, description, "datasets", "dataset")
     
-    def post_plugin(self, title: str, description: str, plugin_data: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    def post_plugin(self, file_path: Path, title: str, description: str) -> Optional[str]:
         """
-        Post a plugin to the middleware
+        Post a plugin file to the middleware
         
         Args:
+            file_path: Path to the plugin file
             title: Title for the plugin
             description: Description for the plugin
-            plugin_data: Optional additional plugin data
             
         Returns:
             UUID of the created plugin on success, None on failure
         """
-        try:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console
-            ) as progress:
-                task = progress.add_task("Creating plugin...", total=None)
-                
-                payload = {
-                    'title': title,
-                    'description': description
-                }
-                
-                # Add any additional plugin data
-                if plugin_data:
-                    payload.update(plugin_data)
-                
-                url = f"{self.base_url}/api/v1/plugins"
-                response = self.session.post(url, json=payload, headers={'Content-Type': 'application/json'})
-                
-                progress.remove_task(task)
-                
-                if response.status_code == 201:
-                    result = response.json()
-                    uuid = result.get('uuid')
-                    console.print(f"[green]✓ Plugin created successfully with UUID: {uuid}[/green]")
-                    return uuid
-                else:
-                    console.print(f"[red]✗ Failed to create plugin: {response.status_code} - {response.text}[/red]")
-                    return None
-                    
-        except requests.RequestException as e:
-            console.print(f"[red]✗ Network error posting plugin: {e}[/red]")
-            return None
-        except Exception as e:
-            console.print(f"[red]✗ Error posting plugin: {e}[/red]")
-            return None
+        return self._post_file(file_path, title, description, "plugins", "plugin")
     
     def post_pipeline(self, pipeline_file: Path) -> Optional[str]:
         """
@@ -249,22 +225,13 @@ def dataset(
 @app.command()
 def plugin(
     ctx: typer.Context,
+    file: Path = typer.Argument(..., help="Path to the plugin file"),
     title: str = typer.Option(..., "--title", "-t", help="Title for the plugin"),
     description: str = typer.Option(..., "--description", "-d", help="Description for the plugin"),
-    data: Optional[Path] = typer.Option(None, "--data", help="Optional JSON file with additional plugin data")
 ):
-    """Post a plugin to the middleware"""
-    plugin_data = None
-    if data:
-        try:
-            with open(data, 'r') as f:
-                plugin_data = json.load(f)
-        except Exception as e:
-            console.print(f"[red]✗ Error loading plugin data file: {e}[/red]")
-            raise typer.Exit(1)
-    
+    """Post a plugin to the middleware"""    
     client = MiddlewareClient(ctx.obj['url'])
-    uuid = client.post_plugin(title, description, plugin_data)
+    uuid = client.post_plugin(file, title, description)
     
     if uuid is None:
         raise typer.Exit(1)

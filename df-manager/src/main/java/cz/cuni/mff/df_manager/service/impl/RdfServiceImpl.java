@@ -161,10 +161,10 @@ public class RdfServiceImpl implements RdfService {
                 model.createResource(dfNamespace + "Plugin")
         );
         
-        plugin.addProperty(
-                model.createProperty(RDF_TYPE),
-                model.createResource(DCAT_NS + "Resource")
-        );
+//        plugin.addProperty(
+//                model.createProperty(RDF_TYPE),
+//                model.createResource(DCAT_NS + "Resource")
+//        );
         
         // Add title and description
         addCommonResourceProperties(model, plugin, title, description, artifactId, fileExtension);

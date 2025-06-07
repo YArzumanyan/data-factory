@@ -59,7 +59,7 @@ public class DatasetController implements RdfController {
                     @ApiResponse(responseCode = "400", description = "Malformed RDF syntax or missing dcat:Dataset resource", content = @Content),
                     @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
             })
-    public ResponseEntity<Void> createDataset(
+    public ResponseEntity<String> createDataset(
             InputStream requestBody,
             @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) {
 
@@ -69,13 +69,10 @@ public class DatasetController implements RdfController {
         try {
             String resourceUri = rdfStorageService.storeRdfGraph(datasetModel, Vocab.Dataset);
             log.info("Dataset stored successfully with URI: {}", resourceUri);
-            return ResponseEntity.created(new URI(resourceUri)).build();
+            return ResponseEntity.status(HttpStatus.CREATED).body(resourceUri);
         } catch (IllegalArgumentException e) {
             log.warn("Invalid dataset graph provided: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
-        } catch (URISyntaxException e) {
-            log.error("Failed to create URI for Location header: {}", e.getMessage());
-            return ResponseEntity.internalServerError().build();
         }
     }
 
