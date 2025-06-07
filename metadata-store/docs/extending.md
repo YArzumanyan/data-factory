@@ -355,18 +355,3 @@ private static final String[] SUPPORTED_RDF_MEDIA_TYPES = {
     RdfMediaType.APPLICATION_N_TRIPLES_VALUE
 };
 ```
-
-## Best Practices for Extensions
-
-When extending the Metadata Store, follow these best practices:
-
-1. **Maintain Separation of Concerns**: Keep controllers focused on HTTP handling, services on business logic, etc.
-2. **Follow Existing Patterns**: Use the same patterns as the existing code for consistency.
-3. **Document Your Extensions**: Add Javadoc comments to all new classes and methods.
-4. **Write Tests**: Create unit tests for all new functionality.
-5. **Update API Documentation**: Update Swagger annotations for new endpoints.
-6. **Consider Backward Compatibility**: Ensure extensions don't break existing functionality.
-7. **Use Dependency Injection**: Let Spring manage dependencies rather than creating objects directly.
-8. **Handle Errors Consistently**: Use the existing exception handling mechanisms.
-9. **Validate Input**: Always validate input data before processing.
-10. **Log Appropriately**: Use the SLF4J logger with appropriate log levels.

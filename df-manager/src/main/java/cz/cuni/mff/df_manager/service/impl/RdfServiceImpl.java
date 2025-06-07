@@ -8,7 +8,6 @@ import cz.cuni.mff.df_manager.service.RdfService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.jena.rdf.model.*;
-import org.apache.jena.vocabulary.RDF;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -54,6 +53,62 @@ public class RdfServiceImpl implements RdfService {
     private static final String PPLAN_NS = "http://purl.org/net/p-plan#";
     private static final String PROV_NS = "http://www.w3.org/ns/prov#";
 
+    /**
+     * Adds common properties to a resource, such as title, description, and distribution.
+     *
+     * @param model The RDF model
+     * @param resource The resource to which properties will be added
+     * @param title The title of the resource
+     * @param description The description of the resource
+     * @param artifactId The artifact ID for the distribution access URL
+     * @param fileExtension The file extension for determining MIME type
+     */
+    private void addCommonResourceProperties(Model model, Resource resource, String title, String description, String artifactId, String fileExtension) {
+        // Add title and description
+        if (title != null && !title.isEmpty()) {
+            resource.addProperty(
+                    model.createProperty(DCTERMS_NS + "title"),
+                    title
+            );
+        }
+
+        if (description != null && !description.isEmpty()) {
+            resource.addProperty(
+                    model.createProperty(DCTERMS_NS + "description"),
+                    description
+            );
+        }
+
+        // Create distribution
+        Resource distribution = model.createResource();
+
+        // Add a distribution type
+        distribution.addProperty(
+                model.createProperty(RDF_TYPE),
+                model.createResource(DCAT_NS + "Distribution")
+        );
+
+        // Add access URL
+        String downloadUrl = downloadEndpointTemplate.replace("{artifactId}", artifactId);
+        distribution.addProperty(
+                model.createProperty(DCAT_NS + "accessURL"),
+                model.createResource(downloadUrl)
+        );
+
+        // Add a compress format
+        String mimeType = determineMimeType(fileExtension);
+        distribution.addProperty(
+                model.createProperty(DCAT_NS + "compressFormat"),
+                model.createResource("http://www.iana.org/assignments/media-types/" + mimeType)
+        );
+
+        // Link distribution to resource
+        resource.addProperty(
+                model.createProperty(DCAT_NS + "distribution"),
+                distribution
+        );
+    }
+
     @Override
     public String generateDatasetRdf(String title, String description, String artifactId, String fileExtension) {
         // Create a new model
@@ -63,63 +118,20 @@ public class RdfServiceImpl implements RdfService {
         model.setNsPrefix("dcat", DCAT_NS);
         model.setNsPrefix("dcterms", DCTERMS_NS);
         model.setNsPrefix("ds", dsNamespace);
-        
-        // Generate a UUID for the dataset
-        String datasetUuid = UUID.randomUUID().toString();
-        String datasetUri = dsNamespace + datasetUuid;
+
+        String datasetUri = dsNamespace + artifactId;
         
         // Create the dataset resource
         Resource dataset = model.createResource(datasetUri);
         
-        // Add dataset type
+        // Add a dataset type
         dataset.addProperty(
                 model.createProperty(RDF_TYPE),
                 model.createResource(DCAT_NS + "Dataset")
         );
         
         // Add title and description
-        if (title != null && !title.isEmpty()) {
-            dataset.addProperty(
-                    model.createProperty(DCTERMS_NS + "title"),
-                    title
-            );
-        }
-        
-        if (description != null && !description.isEmpty()) {
-            dataset.addProperty(
-                    model.createProperty(DCTERMS_NS + "description"),
-                    description
-            );
-        }
-        
-        // Create distribution
-        Resource distribution = model.createResource();
-        
-        // Add distribution type
-        distribution.addProperty(
-                model.createProperty(RDF_TYPE),
-                model.createResource(DCAT_NS + "Distribution")
-        );
-        
-        // Add access URL
-        String downloadUrl = downloadEndpointTemplate.replace("{artifactId}", artifactId);
-        distribution.addProperty(
-                model.createProperty(DCAT_NS + "accessURL"),
-                model.createResource(downloadUrl)
-        );
-        
-        // Add compress format
-        String mimeType = determineMimeType(fileExtension);
-        distribution.addProperty(
-                model.createProperty(DCAT_NS + "compressFormat"),
-                model.createResource("http://www.iana.org/assignments/media-types/" + mimeType)
-        );
-        
-        // Link distribution to dataset
-        dataset.addProperty(
-                model.createProperty(DCAT_NS + "distribution"),
-                distribution
-        );
+        addCommonResourceProperties(model, dataset, title, description, artifactId, fileExtension);
         
         // Convert model to Turtle format
         java.io.StringWriter sw = new java.io.StringWriter();
@@ -137,10 +149,8 @@ public class RdfServiceImpl implements RdfService {
         model.setNsPrefix("dcterms", DCTERMS_NS);
         model.setNsPrefix("df", dfNamespace);
         model.setNsPrefix("pl", plNamespace);
-        
-        // Generate a UUID for the plugin
-        String pluginUuid = UUID.randomUUID().toString();
-        String pluginUri = plNamespace + pluginUuid;
+
+        String pluginUri = plNamespace + artifactId;
         
         // Create the plugin resource
         Resource plugin = model.createResource(pluginUri);
@@ -157,49 +167,8 @@ public class RdfServiceImpl implements RdfService {
         );
         
         // Add title and description
-        if (title != null && !title.isEmpty()) {
-            plugin.addProperty(
-                    model.createProperty(DCTERMS_NS + "title"),
-                    title
-            );
-        }
-        
-        if (description != null && !description.isEmpty()) {
-            plugin.addProperty(
-                    model.createProperty(DCTERMS_NS + "description"),
-                    description
-            );
-        }
-        
-        // Create distribution
-        Resource distribution = model.createResource();
-        
-        // Add distribution type
-        distribution.addProperty(
-                model.createProperty(RDF_TYPE),
-                model.createResource(DCAT_NS + "Distribution")
-        );
-        
-        // Add access URL
-        String downloadUrl = downloadEndpointTemplate.replace("{artifactId}", artifactId);
-        distribution.addProperty(
-                model.createProperty(DCAT_NS + "accessURL"),
-                model.createResource(downloadUrl)
-        );
-        
-        // Add compress format
-        String mimeType = determineMimeType(fileExtension);
-        distribution.addProperty(
-                model.createProperty(DCAT_NS + "compressFormat"),
-                model.createResource("http://www.iana.org/assignments/media-types/" + mimeType)
-        );
-        
-        // Link distribution to plugin
-        plugin.addProperty(
-                model.createProperty(DCAT_NS + "distribution"),
-                distribution
-        );
-        
+        addCommonResourceProperties(model, plugin, title, description, artifactId, fileExtension);
+
         // Convert model to Turtle format
         java.io.StringWriter sw = new java.io.StringWriter();
         model.write(sw, "TURTLE");
@@ -231,7 +200,7 @@ public class RdfServiceImpl implements RdfService {
         // Create the pipeline resource
         Resource pipeline = model.createResource(pipelineUri);
         
-        // Add pipeline type
+        // Add a pipeline type
         pipeline.addProperty(
                 model.createProperty(RDF_TYPE),
                 model.createResource(PPLAN_NS + "Plan")
@@ -305,7 +274,7 @@ public class RdfServiceImpl implements RdfService {
             
             Resource stepResource = model.createResource(stepUri);
             
-            // Add step type
+            // Add a step type
             stepResource.addProperty(
                     model.createProperty(RDF_TYPE),
                     model.createResource(PPLAN_NS + "Step")
@@ -422,7 +391,7 @@ public class RdfServiceImpl implements RdfService {
                 String outputDatasetUri = dsNamespace + outputDatasetUuid;
                 Resource outputDataset = model.createResource(outputDatasetUri);
                 
-                // Add dataset type
+                // Add a dataset type
                 outputDataset.addProperty(
                         model.createProperty(RDF_TYPE),
                         model.createResource(DCAT_NS + "Dataset")
@@ -470,7 +439,9 @@ public class RdfServiceImpl implements RdfService {
         return switch (extension.toLowerCase()) {
             case "zip" -> "application/zip";
             case "tar" -> "application/x-tar";
-            case "gz", "gzip" -> "application/gzip";
+            case "tar.gz", "tgz", "gz", "gzip" -> "application/gzip";
+            case "tar.bz2", "tbz" -> "application/x-bzip2";
+            case "7z" -> "application/x-7z-compressed";
             case "jar" -> "application/java-archive";
             default -> "application/octet-stream";
         };

@@ -1,7 +1,6 @@
 package cz.cuni.mff.metadata_store.utils;
 
 import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFLanguages;
 import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 

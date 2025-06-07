@@ -26,18 +26,18 @@ The Metadata Store is built using the following technologies and architectural p
 │  │    Store    │  │  Resource   │  │ Dataset/Pipeline/   │  │
 │  │ Controller  │  │ Controller  │  │ Plugin Controllers  │  │
 │  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘  │
-└─────────┼───────────────┼─────────────────────┼─────────────┘
-          │               │                     │
-          ▼               ▼                     ▼
+└─────────┼────────────────┼────────────────────┼─────────────┘
+          │                │                    │
+          ▼                ▼                    ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                       Service Layer                         │
 │                                                             │
 │               ┌─────────────────────────────┐               │
-│               │    RdfStorageService        │               │
+│               │      RdfStorageService      │               │
 │               └──────────────┬──────────────┘               │
 │                              │                              │
 │               ┌──────────────┴──────────────┐               │
-│               │      UriService             │               │
+│               │         UriService          │               │
 │               └─────────────────────────────┘               │
 └─────────────────────────────┬───────────────────────────────┘
                               │
@@ -133,13 +133,3 @@ The Metadata Store application uses several design patterns:
 3. **Repository Pattern**: The RDF storage service acts as a repository for RDF data.
 4. **Factory Pattern**: Used for creating RDF models and resources.
 5. **Adapter Pattern**: Used to adapt between Jena's API and the application's API.
-
-## Security Considerations
-
-The current implementation focuses on functionality rather than security. In a production environment, consider adding:
-
-1. **Authentication**: Secure the API with authentication mechanisms.
-2. **Authorization**: Implement role-based access control.
-3. **Input Validation**: Add more robust validation of incoming RDF data.
-4. **Rate Limiting**: Protect against abuse with rate limiting.
-5. **HTTPS**: Enforce HTTPS for all communications.

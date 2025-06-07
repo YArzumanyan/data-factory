@@ -1,6 +1,5 @@
 package cz.cuni.mff.df_manager.controller;
 
-import cz.cuni.mff.df_manager.model.ArtifactUploadRequest;
 import cz.cuni.mff.df_manager.model.RdfResponse;
 import cz.cuni.mff.df_manager.service.ArtifactRepositoryService;
 import cz.cuni.mff.df_manager.service.MetadataStoreService;
@@ -45,7 +44,7 @@ public class DatasetController {
         log.info("Uploading dataset: {}", title);
 
         try {
-            // Upload file to artifact repository
+            // Upload the file to artifact repository
             String artifactId = artifactRepositoryService.uploadArtifact(file);
             log.info("Artifact uploaded with ID: {}", artifactId);
 

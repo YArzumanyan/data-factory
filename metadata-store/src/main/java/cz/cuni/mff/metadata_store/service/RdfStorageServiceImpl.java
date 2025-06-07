@@ -1,11 +1,9 @@
 package cz.cuni.mff.metadata_store.service;
 
-import cz.cuni.mff.metadata_store.utils.Vocab; // Import the Vocab constants
+import cz.cuni.mff.metadata_store.utils.Vocab;
 import java.util.NoSuchElementException;
-import jakarta.annotation.PostConstruct;
 import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.*;
-import org.apache.jena.shared.Lock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +11,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Implementation of RdfStorageService using Jena TDB2 Dataset.

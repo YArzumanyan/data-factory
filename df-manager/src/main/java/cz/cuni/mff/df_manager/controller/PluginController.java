@@ -44,7 +44,7 @@ public class PluginController {
         log.info("Uploading plugin: {}", title);
 
         try {
-            // Upload file to artifact repository
+            // Upload the file to artifact repository
             String artifactId = artifactRepositoryService.uploadArtifact(file);
             log.info("Artifact uploaded with ID: {}", artifactId);
 
