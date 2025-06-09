@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import static java.util.Collections.singletonList;
+
 /**
  * Implementation of the MetadataStoreService that communicates with the metadata store via REST.
  */
@@ -69,7 +71,7 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
         // Use specific endpoints for known resource types
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(java.util.Collections.singletonList(RdfMediaType.TEXT_TURTLE));
+        headers.setAccept(singletonList(RdfMediaType.TEXT_TURTLE));
 
         HttpEntity<String> requestEntity = new HttpEntity<>(headers);
 
@@ -100,7 +102,9 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
             ResponseEntity<Void> response = restTemplate.exchange(
                     url,
                     HttpMethod.HEAD,
-                    null,
+                    new HttpEntity<>(new HttpHeaders() {{
+                        setAccept(singletonList(RdfMediaType.TEXT_TURTLE));
+                    }}),
                     Void.class
             );
 

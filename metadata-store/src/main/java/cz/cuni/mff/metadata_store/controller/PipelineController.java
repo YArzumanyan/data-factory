@@ -57,7 +57,7 @@ public class PipelineController implements RdfController {
                     @ApiResponse(responseCode = "400", description = "Malformed RDF syntax or missing p-plan:Plan resource", content = @Content),
                     @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
             })
-    public ResponseEntity<Void> createPipeline(
+    public ResponseEntity<String> createPipeline(
             InputStream requestBody,
             @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) {
 
@@ -67,15 +67,11 @@ public class PipelineController implements RdfController {
         try {
             String resourceUri = rdfStorageService.storeRdfGraph(pipelineModel, Vocab.Plan);
             log.info("Pipeline stored successfully with URI: {}", resourceUri);
-            return ResponseEntity.created(new URI(resourceUri)).build();
+            return ResponseEntity.status(HttpStatus.CREATED).body(resourceUri);
         } catch (IllegalArgumentException e) {
             // Handles cases where storeRdfGraph determines the input is invalid (e.g., no Plan)
             log.warn("Invalid pipeline graph provided: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
-        } catch (URISyntaxException e) {
-            log.error("Failed to create URI for Location header: {}", e.getMessage());
-            // Should not happen if storeRdfGraph returns valid URIs
-            return ResponseEntity.internalServerError().build();
         }
     }
 

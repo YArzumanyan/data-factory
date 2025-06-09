@@ -77,7 +77,7 @@ class MiddlewareClient:
                 
                 if response.status_code == 201:
                     uri = response.text
-                    uuid = uri.split('/')[-1]
+                    uuid = uri.split('#')[-1]
                     console.print(f"[dim]full uri: {uri}[/dim]")
                     console.print(f"[green]✓ {item_name.capitalize()} created successfully with UUID: {uuid}[/green]")
                     return uri
@@ -158,8 +158,8 @@ class MiddlewareClient:
                 progress.remove_task(task)
                 
                 if response.status_code == 201:
-                    result = response.json()
-                    uuid = result.get('uuid')
+                    uri = response.text
+                    uuid = uri.split('#')[-1]
                     console.print(f"[green]✓ Pipeline created successfully with UUID: {uuid}[/green]")
                     return uuid
                 else:
