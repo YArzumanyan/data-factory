@@ -349,13 +349,6 @@ public class RdfStorageServiceImpl implements RdfStorageService {
         return resultModel;
     }
 
-
-    @Override
-    public Model getRootContainerDescription() {
-        log.debug("Getting LDP root container description for: {}", Vocab.RootContainer.getURI());
-        return describeResource(Vocab.RootContainer.getURI());
-    }
-
     @Override
     public Model getEntireStoreModel() {
         log.info("Retrieving entire default graph from the store.");

@@ -81,13 +81,6 @@ public interface RdfStorageService {
     Model listResources(Resource resourceType);
 
     /**
-     * Retrieves the LDP root container description, including ldp:contains triples.
-     *
-     * @return A Jena Model describing the root container.
-     */
-    Model getRootContainerDescription();
-
-    /**
      * Retrieves a copy of the entire default graph from the RDF store.
      *
      * @return A Jena Model containing all triples in the default graph.
