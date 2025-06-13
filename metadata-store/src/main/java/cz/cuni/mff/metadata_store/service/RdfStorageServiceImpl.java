@@ -158,6 +158,94 @@ public class RdfStorageServiceImpl implements RdfStorageService {
     }
 
     @Override
+    public Model getPipelineDescriptionWithDependencies(String pipelineUuid) throws NoSuchElementException {
+        String resourceUri = uriService.buildPipelineUri(pipelineUuid);
+        Model pipelineModel = describeResourceOrThrow(resourceUri);
+
+        String queryString = """
+            PREFIX dcat:    <http://www.w3.org/ns/dcat#>
+            PREFIX dcterms: <http://purl.org/dc/terms/>
+            PREFIX df:      <http://localhost:8080/ns/df#>
+            PREFIX ds:      <http://localhost:8080/ns/ds#>
+            PREFIX ldp:     <http://www.w3.org/ns/ldp#>
+            PREFIX owl:     <http://www.w3.org/2002/07/owl#>
+            PREFIX p-plan:  <http://purl.org/net/p-plan#>
+            PREFIX pipe:    <http://localhost:8080/ns/pipe#>
+            PREFIX pl:      <http://localhost:8080/ns/pl#>
+            PREFIX prov:    <http://www.w3.org/ns/prov#>
+            PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX step:    <http://localhost:8080/ns/step#>
+            PREFIX var:     <http://localhost:8080/ns/var#>
+            PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+            CONSTRUCT {
+              # Level 0->1: Triples connected to the pipeline
+              ?pipeline ?p_out ?o .
+              ?s ?p_in ?pipeline .
+
+              # Level 1->2: Properties of direct neighbors
+              ?s ?s_p ?s_o .
+              ?o ?o_p ?o_o .
+
+              # Level 2->3: Properties of "grandchildren"
+              ?s_o ?s_o_p ?s_o_o .
+              ?o_o ?o_o_p ?o_o_o .
+            
+              # Level 3->4: Properties of "great-grandchildren" (for blank nodes)
+              ?s_o_o ?s_o_o_p ?s_o_o_o .
+              ?o_o_o ?o_o_o_p ?o_o_o_o .
+            }
+            WHERE {
+              VALUES ?pipeline { <%s> }
+
+              {
+                # Find triples where the pipeline is the subject
+                ?pipeline ?p_out ?o .
+                # optionally go three levels deeper from the object `o`.
+                OPTIONAL {
+                  ?o ?o_p ?o_o .
+                  OPTIONAL {
+                    ?o_o ?o_o_p ?o_o_o .
+                    OPTIONAL {
+                      ?o_o_o ?o_o_o_p ?o_o_o_o .
+                    }
+                  }
+                }
+              }
+              UNION
+              {
+                # Find triples where the pipeline is the object
+                ?s ?p_in ?pipeline .
+                # optionally go three levels deeper from the subject `s`.
+                OPTIONAL {
+                  ?s ?s_p ?s_o .
+                  OPTIONAL {
+                    ?s_o ?s_o_p ?s_o_o .
+                    OPTIONAL {
+                      ?s_o_o ?s_o_o_p ?s_o_o_o .
+                    }
+                  }
+                }
+              }
+            }
+            """.formatted(resourceUri);
+
+        log.debug("Executing CONSTRUCT query to find dependencies for pipeline: {}", resourceUri);
+        dataset.executeRead(() -> {
+            try (QueryExecution qExec = QueryExecutionFactory.create(queryString, dataset)) {
+                Model dependenciesModel = qExec.execConstruct();
+                pipelineModel.add(dependenciesModel);
+                log.debug("Found {} dependencies for pipeline: {}", dependenciesModel.size(), resourceUri);
+            } catch (Exception e) {
+                log.error("Error executing dependency query for pipeline {}", resourceUri, e);
+            }
+        });
+
+        return pipelineModel;
+    }
+
+    @Override
     public Model getDatasetDescription(String datasetUuid) throws NoSuchElementException {
         String resourceUri = uriService.buildDatasetUri(datasetUuid);
         return describeResourceOrThrow(resourceUri);

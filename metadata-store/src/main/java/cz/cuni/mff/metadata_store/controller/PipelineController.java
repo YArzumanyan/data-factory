@@ -85,10 +85,13 @@ public class PipelineController implements RdfController {
             })
     public ResponseEntity<String> getPipeline(
             @PathVariable String planId,
+            @RequestParam(required = false, defaultValue = "true") boolean full,
             @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
 
         try {
-            Model pipelineModel = rdfStorageService.getPipelineDescription(planId); // Throws NoSuchElementException
+            Model pipelineModel = full
+                    ? rdfStorageService.getPipelineDescriptionWithDependencies(planId)
+                    : rdfStorageService.getPipelineDescription(planId);
             return formatRdfResponse(pipelineModel, acceptHeader);
         } catch (NoSuchElementException e) {
             log.warn("Pipeline not found for ID: {}", planId);

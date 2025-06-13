@@ -42,6 +42,16 @@ public interface RdfStorageService {
     Model getPipelineDescription(String pipelineUuid) throws NoSuchElementException;
 
     /**
+     * Retrieves the RDF description of a specific Pipeline resource identified by its UUID,
+     * including all dependencies (e.g., datasets, plugins) referenced by the pipeline.
+     *
+     * @param pipelineUuid The UUID of the pipeline resource (Vocab.Plan).
+     * @return A Jena Model containing the pipeline description and its dependencies.
+     * @throws NoSuchElementException if the resource with the given UUID is not found.
+     */
+    Model getPipelineDescriptionWithDependencies(String pipelineUuid) throws NoSuchElementException;
+
+    /**
      * Retrieves the RDF description of a specific Dataset resource identified by its UUID.
      *
      * @param datasetUuid The UUID of the dataset resource (Vocab.Dataset).
