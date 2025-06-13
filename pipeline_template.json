@@ -5,7 +5,7 @@
     {
       "id": "raw-data-var",
       "title": "Initial Raw Input",
-      "datasetUuid": "28b768b7-4e1e-4196-8c30-6a83809cea93"
+      "datasetUuid": "DATASET_UUID"
     },
     {
       "id": "validated-data-var",
@@ -20,17 +20,27 @@
     {
       "id": "validate-step",
       "title": "Validate Raw",
-      "pluginUuid": "97780dca-887c-41b6-94e6-494566c303fc",
-      "inputs":  ["raw-data-var"],
-      "outputs": ["validated-data-var"]
+      "pluginUuid": "PLUGIN_UUID",
+      "inputs": [
+        "raw-data-var"
+      ],
+      "outputs": [
+        "validated-data-var"
+      ]
     },
     {
       "id": "cleanse-step",
       "title": "Cleanse Data",
-      "pluginUuid": "f5856e3e-80a0-4e02-b8c6-90bd4077e022",
-      "inputs": ["validated-data-var"],
-      "outputs": ["cleansed-output-var"],
-      "precededBy": ["validate-step"]
+      "pluginUuid": "PLUGIN_UUID",
+      "inputs": [
+        "validated-data-var"
+      ],
+      "outputs": [
+        "cleansed-output-var"
+      ],
+      "precededBy": [
+        "validate-step"
+      ]
     }
   ]
 }

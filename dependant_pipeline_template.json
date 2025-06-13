@@ -1,0 +1,28 @@
+{
+  "title": "Dependant Pipeline",
+  "description": "This pipeline uses the output from a previous pipeline to produce a final output.",
+  "variables": [
+    {
+      "id": "pipe-output",
+      "title": "Output from Previous Pipeline",
+      "datasetUuid": "DEPENDATNT_DATASET_UUID"
+    },
+    {
+      "id": "used-data-var",
+      "title": "Final Output"
+    }
+  ],
+  "steps": [
+    {
+      "id": "use-dataset",
+      "title": "Use Data",
+      "pluginUuid": "PLUGIN_UUID",
+      "inputs": [
+        "pipe-output"
+      ],
+      "outputs": [
+        "cleansed-output-var"
+      ]
+    }
+  ]
+}
