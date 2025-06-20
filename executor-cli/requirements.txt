@@ -3,3 +3,7 @@ networkx
 docker
 aiohttp
 pyyaml
+matplotlib
+requests
+typer
+dotenv
