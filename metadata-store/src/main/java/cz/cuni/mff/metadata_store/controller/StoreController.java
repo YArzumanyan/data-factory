@@ -64,7 +64,7 @@ public class StoreController implements RdfController {
                     @ApiResponse(responseCode = "500", description = "Internal server error during serialization", content = @Content)
             },
             parameters = {
-                @Parameter(name = "inline", in = ParameterIn.QUERY, description = "Set to 'true' to display content inline instead of triggering a download.", required = false, schema = @Schema(type = "boolean", defaultValue = "false"))
+                @Parameter(name = "inline", in = ParameterIn.QUERY, description = "Set to 'true' to display content inline instead of triggering a download.", schema = @Schema(type = "boolean", defaultValue = "false"))
         })
     public ResponseEntity<String> dumpStore(
             @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader,
