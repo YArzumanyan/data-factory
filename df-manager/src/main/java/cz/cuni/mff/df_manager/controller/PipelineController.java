@@ -81,13 +81,13 @@ public class PipelineController {
      * @param uuid The UUID of the pipeline
      * @return RDF data for the pipeline
      */
-    @GetMapping(value = "/{uuid}", produces = RdfMediaType.TEXT_TURTLE_VALUE)
-    public ResponseEntity<RdfResponse> getPipeline(@PathVariable String uuid) {
+    @GetMapping(value = "/{uuid}")
+    public ResponseEntity<String> getPipeline(@PathVariable String uuid) {
         log.info("Retrieving pipeline: {}", uuid);
 
         try {
             String rdfData = metadataStoreService.getResourceRdf("pipe", uuid);
-            return ResponseEntity.ok(new RdfResponse(rdfData));
+            return ResponseEntity.ok(rdfData);
         } catch (Exception e) {
             log.error("Error retrieving pipeline", e);
             return ResponseEntity.notFound().build();

@@ -37,12 +37,4 @@ public interface RdfService {
      * @return The generated RDF data in Turtle format
      */
     String generatePipelineRdf(PipelineConfig pipelineConfig);
-    
-    /**
-     * Determines the MIME type based on the file extension.
-     *
-     * @param file The uploaded file
-     * @return The MIME type
-     */
-    String determineCompressFormat(MultipartFile file);
 }

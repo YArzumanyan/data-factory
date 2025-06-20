@@ -63,9 +63,4 @@ public class ArtifactRepositoryServiceImpl implements ArtifactRepositoryService 
             throw new RuntimeException("Failed to upload artifact: " + e.getMessage(), e);
         }
     }
-
-    @Override
-    public String getArtifactDownloadUrl(String artifactId) {
-        return downloadEndpointTemplate.replace("{artifactId}", artifactId);
-    }
 }

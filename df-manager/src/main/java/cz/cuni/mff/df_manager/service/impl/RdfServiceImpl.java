@@ -162,11 +162,6 @@ public class RdfServiceImpl implements RdfService {
                 model.createResource(dfNamespace + "Plugin")
         );
         
-//        plugin.addProperty(
-//                model.createProperty(RDF_TYPE),
-//                model.createResource(DCAT_NS + "Resource")
-//        );
-        
         // Add title and description
         addCommonResourceProperties(model, plugin, title, description, artifactId, fileExtension);
 
@@ -391,6 +386,12 @@ public class RdfServiceImpl implements RdfService {
                 String outputDatasetUuid = UUID.randomUUID().toString();
                 String outputDatasetUri = dsNamespace + outputDatasetUuid;
                 Resource outputDataset = model.createResource(outputDatasetUri);
+
+                // add specializationOf property to variable
+                variableResource.addProperty(
+                        model.createProperty(PROV_NS + "specializationOf"),
+                        outputDataset
+                );
                 
                 // Add a dataset type
                 outputDataset.addProperty(
@@ -401,7 +402,7 @@ public class RdfServiceImpl implements RdfService {
                 // Add title
                 outputDataset.addProperty(
                         model.createProperty(DCTERMS_NS + "title"),
-                        variableTitle + " (Output)"
+                        variableTitle
                 );
                 
                 // Link to variable and pipeline
@@ -421,19 +422,6 @@ public class RdfServiceImpl implements RdfService {
         StringWriter sw = new java.io.StringWriter();
         model.write(sw, "TURTLE");
         return sw.toString();
-    }
-
-    @Override
-    public String determineCompressFormat(MultipartFile file) {
-        String filename = file.getOriginalFilename();
-        if (filename != null) {
-            int lastDotIndex = filename.lastIndexOf('.');
-            if (lastDotIndex > 0) {
-                String extension = filename.substring(lastDotIndex + 1).toLowerCase();
-                return determineMimeType(extension);
-            }
-        }
-        return "application/octet-stream";
     }
     
     private String determineMimeType(String extension) {

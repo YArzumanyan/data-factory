@@ -14,12 +14,4 @@ public interface ArtifactRepositoryService {
      * @return The artifact ID assigned by the repository
      */
     String uploadArtifact(MultipartFile file);
-    
-    /**
-     * Constructs the download URL for an artifact.
-     *
-     * @param artifactId The ID of the artifact
-     * @return The full URL to download the artifact
-     */
-    String getArtifactDownloadUrl(String artifactId);
 }

@@ -98,25 +98,3 @@ mvn clean package
 ```bash
 java -jar target/df-manager-0.0.1-SNAPSHOT.jar
 ```
-
-With environment variables:
-
-```bash
-SERVER_PORT=9090 METADATA_STORE_BASE_URL=http://custom-metadata-store/api/v1 java -jar target/df-manager-0.0.1-SNAPSHOT.jar
-```
-
-Or using Maven:
-
-```bash
-mvn spring-boot:run
-```
-
-With environment variables using Maven:
-
-```bash
-mvn spring-boot:run -Dspring-boot.run.jvmArguments="-DSERVER_PORT=9090 -DMETADATA_STORE_BASE_URL=http://custom-metadata-store/api/v1"
-```
-
-## Example Usage
-
-See the [workflow.md](workflow.md) file for detailed examples of how to use the API.
