@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import shutil
 import logging
@@ -7,10 +8,12 @@ import typer
 import subprocess
 import networkx as nx
 import matplotlib.pyplot as plt
+import magic
 from rdflib import Graph
 from typing import Optional, List, Set, Dict
 from urllib.parse import urlparse, urlunparse
 from dotenv import load_dotenv
+from abc import ABC, abstractmethod
 
 # --- Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,56 +22,26 @@ METADATA_STORE_BASE_URL = "http://localhost:8083/api/v1/pipelines"
 ARTIFACT_REPOSITORY_URL = os.getenv("ARTIFACT_REPOSITORY_URL")
 MAIN_WORKSPACE = "./tmp/orchestrator_workspace"
 
-def map_media_type_to_format(media_type_uri: Optional[str]) -> tuple[str, str]:
-    """Maps a IANA media type URI to a shutil format and file extension."""
-    if not media_type_uri:
-        return 'zip', '.zip' # Default to zip if not specified
 
-    media_type = media_type_uri.split('/')[-1].lower()
-    
-    mapping = {
-        "zip": ('zip', '.zip'),
-        "gzip": ('gztar', '.tar.gz'),
-        "x-gzip": ('gztar', '.tar.gz'),
-        "x-tar": ('tar', '.tar'),
-        "x-bzip2": ('bztar', '.tar.bz2'),
-    }
-    
-    for key, value in mapping.items():
-        if key in media_type:
-            return value
-            
-    logging.warning("Unknown compressFormat '%s', defaulting to .zip", media_type_uri)
-    return 'zip', '.zip'
+# --- Helper Functions (Unchanged) ---
+def get_uuid_from_iri(iri: str) -> str:
+    """Extracts the last part of a URI, assuming it's the UUID."""
+    if '#' in iri:
+        return iri.rsplit('#', 1)[-1]
+    return iri.rsplit('/', 1)[-1]
 
 def rewrite_url_base(original_url: str, new_base: str) -> str:
-    """
-    Replaces the base of a given URL with a new base.
-    
-    Args:
-        original_url: The full original URL.
-        new_base: The new base URL.
-        
-    Returns:
-        The rewritten URL as a string.
-    """
     original_parts = urlparse(original_url)
     new_base_parts = urlparse(new_base)
-    
     rewritten_parts = [
-        new_base_parts.scheme,
-        new_base_parts.netloc,
-        original_parts.path,
-        original_parts.params,
-        original_parts.query,
-        original_parts.fragment
+        new_base_parts.scheme, new_base_parts.netloc, original_parts.path,
+        original_parts.params, original_parts.query, original_parts.fragment
     ]
-    
     return urlunparse(rewritten_parts)
 
-# --- Graph Visualization Utility ---
+
+# --- Graph Visualization Utility (Unchanged) ---
 def visualize_graph(graph: nx.DiGraph, title: str = "Combined Pipeline Workflow"):
-    """Uses Matplotlib to draw the detailed workflow graph."""
     if not graph or graph.number_of_nodes() == 0:
         logging.warning("Graph is empty, skipping visualization.")
         return
@@ -92,11 +65,9 @@ def visualize_graph(graph: nx.DiGraph, title: str = "Combined Pipeline Workflow"
     plt.show()
 
 
-# --- Graph Building Class ---
+# --- Graph Building Class (Unchanged) ---
 class CombinedWorkflowBuilder:
-    """
-    Builds a single, unified graph of a pipeline and all its recursive dependencies.
-    """
+    # ... (The entire class content remains here, unchanged)
     def __init__(self, api_base_url: str):
         self.api_base_url = api_base_url
         self.combined_graph = nx.DiGraph()
@@ -113,28 +84,25 @@ class CombinedWorkflowBuilder:
             logging.error(f"Failed to fetch pipeline {pipeline_uuid}: {e}")
             return None
 
-    def _get_inter_pipeline_dependencies(self, rdf_graph: Graph) -> List[str]:
+    def _get_inter_pipeline_dependencies(self, rdf_graph: Graph) -> List[tuple[str, str]]:
         query = """
             PREFIX prov: <http://www.w3.org/ns/prov#>
-            SELECT DISTINCT ?dependent_pipeline_iri
+            SELECT DISTINCT ?dataset_iri ?generating_pipeline_iri
             WHERE {
-                ?var prov:specializationOf ?dataset .
-                ?dataset prov:wasGeneratedBy ?dependent_pipeline_iri .
+                ?var prov:specializationOf ?dataset_iri .
+                ?dataset_iri prov:wasGeneratedBy ?generating_pipeline_iri .
             }
         """
         results = rdf_graph.query(query)
         dependents = []
         for row in results:
-            dep_iri = str(row.dependent_pipeline_iri)
-            if '#' in dep_iri:
-                dependents.append(dep_iri.rsplit('#', 1)[-1])
+            dependents.append((str(row.dataset_iri), str(row.generating_pipeline_iri)))
         return dependents
 
     def _add_pipeline_to_combined_graph(self, rdf_graph: Graph):
-        """Parses an RDF graph and merges its components into the main graph."""
         queries: Dict[str, str] = {
             "nodes": """
-                SELECT ?iri ?title ?type ?accessURL ?compressFormat
+                SELECT ?iri ?title ?type ?accessURL
                 WHERE {
                     { ?iri a/rdfs:subClassOf* <http://purl.org/net/p-plan#Step> . BIND("Step" AS ?type) }
                     UNION
@@ -147,7 +115,6 @@ class CombinedWorkflowBuilder:
                     OPTIONAL {
                         ?iri <http://www.w3.org/ns/dcat#distribution> ?dist .
                         ?dist <http://www.w3.org/ns/dcat#accessURL> ?accessURL .
-                        OPTIONAL { ?dist <http://www.w3.org/ns/dcat#compressFormat> ?compressFormat . }
                     }
                 }
             """,
@@ -168,23 +135,23 @@ class CombinedWorkflowBuilder:
         }
         
         for row in rdf_graph.query(queries["nodes"]):
+            urls = str(row["accessURL"]).split(',') if row["accessURL"] else []
             self.combined_graph.add_node(
                 str(row.iri),
                 label=str(row.title),
                 type=str(row.type),
-                accessURL=str(row.accessURL) if row.accessURL else None,
-                compressFormat=str(row.compressFormat) if row.compressFormat else None
+                accessURLs=urls
             )
-
         for row in rdf_graph.query(queries["edges"]):
             self.combined_graph.add_edge(str(row.source), str(row.target), label=str(row.label))
 
-    def build_graph(self, start_pipeline_uuid: str) -> Optional[nx.DiGraph]:
+    def build_graph(self, start_pipeline_uuid: str, regenerate_uuids: List[str] = None) -> Optional[nx.DiGraph]:
+        if regenerate_uuids is None: regenerate_uuids = []
         pipelines_to_process = [start_pipeline_uuid]
         while pipelines_to_process:
             current_uuid = pipelines_to_process.pop(0)
             if current_uuid in self.processed_pipelines: continue
-            logging.info(f"Processing pipeline: {current_uuid}")
+            logging.info(f"Processing definition for pipeline: {current_uuid}")
             ttl_data = self._fetch_pipeline_ttl(current_uuid)
             if not ttl_data:
                 logging.warning(f"Could not retrieve data for {current_uuid}. Skipping.")
@@ -199,46 +166,84 @@ class CombinedWorkflowBuilder:
             self._add_pipeline_to_combined_graph(rdf_graph)
             dependencies = self._get_inter_pipeline_dependencies(rdf_graph)
             if dependencies:
-                logging.info(f"Found dependencies for {current_uuid}: {dependencies}")
-                for dep_uuid in dependencies:
-                    if dep_uuid not in self.processed_pipelines:
-                        pipelines_to_process.append(dep_uuid)
+                for dataset_iri, pipeline_iri in dependencies:
+                    dataset_uuid = get_uuid_from_iri(dataset_iri)
+                    pipeline_uuid = get_uuid_from_iri(pipeline_iri)
+                    if dataset_uuid in regenerate_uuids:
+                        logging.info(f"Dataset {dataset_uuid} marked for regeneration. Adding pipeline {pipeline_uuid} to queue.")
+                        if pipeline_uuid not in self.processed_pipelines:
+                            pipelines_to_process.append(pipeline_uuid)
+                    else:
+                        logging.info(f"Dataset {dataset_uuid} not marked for regeneration. Will use its distribution if available.")
             self.processed_pipelines.add(current_uuid)
-        logging.info("Finished processing all pipelines.")
+        logging.info("Finished building execution graph.")
         return self.combined_graph
 
 
-# --- Orchestration Class ---
-class Orchestrator:
-    """Executes a pipeline workflow based on a provided graph."""
-    def __init__(self, graph: nx.DiGraph):
-        self.graph = graph
-        self.workspace = MAIN_WORKSPACE
-        self.results_map = {}
+# --- NEW: Execution Strategy Pattern ---
 
-    def _setup_workspace(self):
-        if os.path.exists(self.workspace):
-            shutil.rmtree(self.workspace)
-        os.makedirs(self.workspace)
-        logging.info("Main workspace created at: %s", self.workspace)
+class StepExecutor(ABC):
+    """Interface defining all actions with side-effects."""
+    @abstractmethod
+    def setup_main_workspace(self, path: str): pass
+    
+    @abstractmethod
+    def prepare_step_workspace(self, base_path: str, step_label: str) -> tuple[str, str, str]: pass
 
-    def _fetch_artifact(self, node_iri: str) -> str:
-        """Downloads an artifact and saves it with the correct extension."""
-        node_data = self.graph.nodes[node_iri]
-        access_url = node_data.get('accessURL')
+    @abstractmethod
+    def stage_input(self, source_path: str, target_dir: str): pass
+
+    @abstractmethod
+    def fetch_file(self, access_url: str, target_dir: str) -> str: pass
+
+    @abstractmethod
+    def unpack_plugin(self, archive_path: str, target_dir: str): pass
+    
+    @abstractmethod
+    def read_plugin_config(self, plugin_dir: str) -> dict: pass
+
+    @abstractmethod
+    def build_docker_image(self, image_tag: str, build_context_dir: str): pass
+
+    @abstractmethod
+    def run_docker_container(self, image_tag: str, inputs_dir: str, outputs_dir: str, config: dict): pass
+
+    @abstractmethod
+    def finalize_output(self, outputs_dir: str, persistent_dir: str, base_name: str) -> str: pass
+
+
+class LiveExecutor(StepExecutor):
+    """The 'real' executor that performs file operations and runs Docker."""
+    def setup_main_workspace(self, path: str):
+        if os.path.exists(path):
+            shutil.rmtree(path)
+        os.makedirs(path)
+        logging.info("Main workspace created at: %s", path)
+
+    def prepare_step_workspace(self, base_path: str, step_label: str) -> tuple[str, str, str]:
+        step_workspace = os.path.join(base_path, step_label.replace(' ', '_'))
+        inputs_dir = os.path.join(step_workspace, "inputs")
+        outputs_dir = os.path.join(step_workspace, "outputs")
+        plugin_dir = os.path.join(step_workspace, "plugin")
+        os.makedirs(inputs_dir); os.makedirs(outputs_dir); os.makedirs(plugin_dir)
+        return inputs_dir, outputs_dir, plugin_dir
+    
+    def stage_input(self, source_path: str, target_dir: str):
+        if os.path.exists(source_path):
+            shutil.copytree(source_path, target_dir)
+            
+    def fetch_file(self, access_url: str, target_dir: str) -> str:
         if not access_url:
-            raise ValueError(f"Cannot fetch artifact for {node_iri}: missing accessURL.")
+            raise ValueError("Cannot fetch artifact with an empty accessURL.")
         
         if ARTIFACT_REPOSITORY_URL:
             access_url = rewrite_url_base(access_url, ARTIFACT_REPOSITORY_URL)
+            
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir, exist_ok=True)
         
-        # Determine filename and extension from graph data
-        _, file_ext = map_media_type_to_format(node_data.get('compressFormat'))
-        local_filename = f"{node_data['label'].replace(' ', '_')}{file_ext}"
-        local_path = os.path.join(self.workspace, "artifact_cache", local_filename)
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
-        
-        logging.info("Downloading artifact from %s to %s", access_url, local_path)
+        local_path = os.path.join(target_dir, os.path.basename(access_url))
+        logging.info("Downloading file from %s to %s", access_url, local_path)
         try:
             with requests.get(access_url, stream=True, timeout=30) as r:
                 r.raise_for_status()
@@ -247,91 +252,171 @@ class Orchestrator:
                         f.write(chunk)
             return local_path
         except requests.exceptions.RequestException as e:
-            logging.error("Failed to download artifact: %s", e)
+            logging.error("Failed to download file: %s", e)
             raise
+
+    def read_plugin_config(self, plugin_dir: str) -> dict:
+        with open(os.path.join(plugin_dir, "config.json")) as f:
+            return json.load(f)
+
+    def unpack_plugin(self, archive_path: str, target_dir: str):
+        mime_type = magic.from_file(archive_path, mime=True)
+        shutil_format = 'zip' # default
+        if 'zip' in mime_type: shutil_format = 'zip'
+        elif 'gzip' in mime_type: shutil_format = 'gztar'
+        elif 'tar' in mime_type: shutil_format = 'tar'
+        elif 'bzip2' in mime_type: shutil_format = 'bztar'
+        else: raise TypeError(f"Plugin {archive_path} is not a recognized archive format.")
+
+        logging.info("Unpacking plugin with detected format: %s", shutil_format)
+        shutil.unpack_archive(archive_path, target_dir, format=shutil_format)
+
+    def build_docker_image(self, image_tag: str, build_context_dir: str):
+        logging.info("Building Docker image: %s", image_tag)
+        subprocess.run(["docker", "build", "-t", image_tag, "."], cwd=build_context_dir, check=True, capture_output=True)
+
+    def run_docker_container(self, image_tag: str, inputs_dir: str, outputs_dir: str, config: dict):
+        logging.info("Running container...")
+        subprocess.run([
+            "docker", "run", "--rm",
+            "-v", f"{os.path.abspath(inputs_dir)}:{config['input_directory']}",
+            "-v", f"{os.path.abspath(outputs_dir)}:{config['output_directory']}",
+            image_tag
+        ], check=True, capture_output=True)
+
+    def finalize_output(self, outputs_dir: str, persistent_dir: str, base_name: str) -> str:
+        final_output_dir = os.path.join(persistent_dir, base_name)
+        shutil.move(outputs_dir, final_output_dir)
+        return final_output_dir
+
+
+class DryRunExecutor(StepExecutor):
+    """A 'dry run' executor that only prints actions"""
+    
+    def setup_main_workspace(self, path: str):
+        typer.secho(f"[DRY RUN] Would set up main workspace at: {path}", fg=typer.colors.YELLOW)
+        
+    def prepare_step_workspace(self, base_path: str, step_label: str) -> tuple[str, str, str]:
+        step_workspace = os.path.join(base_path, step_label.replace(' ', '_'))
+        typer.secho(f"[DRY RUN] Would prepare workspace for step '{step_label}' at: {step_workspace}", fg=typer.colors.CYAN)
+        # Return dummy paths for the orchestrator to use conceptually
+        return (
+            os.path.join(step_workspace, "inputs"),
+            os.path.join(step_workspace, "outputs"),
+            os.path.join(step_workspace, "plugin")
+        )
+
+    def stage_input(self, source_path: str, target_dir: str):
+        typer.secho(f"[DRY RUN] Would stage input from {source_path} to {target_dir}", fg=typer.colors.CYAN)
+
+    def fetch_file(self, access_url: str, target_dir: str) -> str:
+        if ARTIFACT_REPOSITORY_URL:
+            access_url = rewrite_url_base(access_url, ARTIFACT_REPOSITORY_URL)
+        path = os.path.join(target_dir, os.path.basename(access_url))
+        typer.secho(f"[DRY RUN] Would fetch artifact from {access_url} to {path}", fg=typer.colors.CYAN)
+        return path 
+    
+    def read_plugin_config(self, plugin_dir: str) -> dict:
+        typer.secho(f"[DRY RUN] Would read config.json from {plugin_dir}", fg=typer.colors.CYAN)
+        # Return a dummy config so the orchestrator can continue
+        return {"input_directory": "/dry_run/in", "output_directory": "/dry_run/out"}
+    
+    def unpack_plugin(self, archive_path: str, target_dir: str):
+        typer.secho(f"[DRY RUN] Would unpack plugin {archive_path} to {target_dir}", fg=typer.colors.CYAN)
+
+    def build_docker_image(self, image_tag: str, build_context_dir: str):
+        cmd = ["docker", "build", "-t", image_tag, "."]
+        typer.secho(f"[DRY RUN] In directory '{build_context_dir}', would execute command:", fg=typer.colors.CYAN)
+        typer.echo(f"  {' '.join(cmd)}")
+
+    def run_docker_container(self, image_tag: str, inputs_dir: str, outputs_dir: str, config: dict):
+        cmd = [
+            "docker", "run", "--rm",
+            "-v", f"'{os.path.abspath(inputs_dir)}:{config['input_directory']}'",
+            "-v", f"'{os.path.abspath(outputs_dir)}:{config['output_directory']}'",
+            image_tag
+        ]
+        typer.secho(f"[DRY RUN] Would execute command:", fg=typer.colors.CYAN)
+        typer.echo(f"  {' '.join(cmd)}")
+
+    def finalize_output(self, outputs_dir: str, persistent_dir: str, base_name: str) -> str:
+        final_path = os.path.join(persistent_dir, base_name)
+        typer.secho(f"[DRY RUN] Would finalize output from {outputs_dir} into {final_path}", fg=typer.colors.CYAN)
+        return final_path
+
+
+# --- Orchestration Class (Refactored) ---
+class Orchestrator:
+    def __init__(self, graph: nx.DiGraph, executor: StepExecutor):
+        self.graph = graph
+        self.executor = executor
+        self.workspace = MAIN_WORKSPACE
+        self.results_map = {}
 
     def _execute_step(self, step_iri: str):
         step_label = self.graph.nodes[step_iri]['label']
         logging.info("--- Executing Step: %s ---", step_label)
 
-        step_workspace = os.path.join(self.workspace, step_label.replace(' ', '_'))
-        inputs_dir = os.path.join(step_workspace, "inputs")
-        outputs_dir = os.path.join(step_workspace, "outputs")
-        plugin_dir = os.path.join(step_workspace, "plugin")
-        os.makedirs(inputs_dir)
-        os.makedirs(outputs_dir)
-        os.makedirs(plugin_dir)
+        inputs_dir, outputs_dir, plugin_dir = self.executor.prepare_step_workspace(self.workspace, step_label)
 
         for pred_iri in self.graph.predecessors(step_iri):
-            if self.graph.nodes[pred_iri]['type'] == 'Variable':
-                archive_path = self.results_map.get(pred_iri)
-                if not archive_path:
+            node_data = self.graph.nodes[pred_iri]
+            if node_data['type'] == 'Variable':
+                result_dir_path = self.results_map.get(pred_iri)
+                if not result_dir_path:
                     raise ValueError(f"Orchestration error: Could not find result for input variable {pred_iri}")
-                shutil.copy(archive_path, inputs_dir)
-                logging.info("Staged input from %s", archive_path)
+                dest_dir = os.path.join(inputs_dir, node_data['label'].replace(' ', '_'))
+                self.executor.stage_input(result_dir_path, dest_dir)
+                logging.info("Staged input '%s' from %s", node_data['label'], result_dir_path)
 
         plugin_iri = next(s for s in self.graph.successors(step_iri) if self.graph.nodes[s]['type'] == 'Plugin')
-        plugin_archive_path = self._fetch_artifact(plugin_iri)
+        plugin_access_url = self.graph.nodes[plugin_iri]['accessURLs'][0]
+        plugin_archive_path = self.executor.fetch_file(
+            plugin_access_url, os.path.join(self.workspace, "artifact_cache")
+        )
+        self.executor.unpack_plugin(plugin_archive_path, plugin_dir)
         
-        shutil_format, _ = map_media_type_to_format(self.graph.nodes[plugin_iri].get('compressFormat'))
-        logging.info("Unpacking plugin with format: %s", shutil_format)
-        shutil.unpack_archive(plugin_archive_path, plugin_dir, format=shutil_format)
-        
-        with open(os.path.join(plugin_dir, "config.json")) as f:
-            plugin_config = json.load(f)
+        plugin_config = self.executor.read_plugin_config(plugin_dir)
         
         image_tag = f"plugin-{self.graph.nodes[plugin_iri]['label'].lower().replace(' ', '-')}"
         
         try:
-            logging.info("Building Docker image: %s", image_tag)
-            subprocess.run(["docker", "build", "-t", image_tag, "."], cwd=plugin_dir, check=True, capture_output=True)
-            
-            logging.info("Running container...")
-            result = subprocess.run([
-                "docker", "run", "--rm",
-                "-v", f"{os.path.abspath(inputs_dir)}:{plugin_config['input_directory']}",
-                "-v", f"{os.path.abspath(outputs_dir)}:{plugin_config['output_directory']}",
-                image_tag
-            ], check=True, capture_output=True)
-            logging.info("Container finished successfully. STDOUT: %s", result.stdout.decode())
-
+            self.executor.build_docker_image(image_tag, plugin_dir)
+            self.executor.run_docker_container(image_tag, inputs_dir, outputs_dir, plugin_config)
         except subprocess.CalledProcessError as e:
             logging.error("Docker execution failed! Exit Code: %s", e.returncode)
             logging.error("STDERR: %s", e.stderr.decode())
             raise
-        
+
         output_var_iri = next(s for s in self.graph.successors(step_iri) if self.graph.nodes[s]['type'] == 'Variable')
-        output_archive_path = None
+        output_title = self.graph.nodes[output_var_iri]['label'].replace(' ', '_')
         
-        items_in_output = os.listdir(outputs_dir)
-        # Check if the plugin produced a single archive as its output
-        if len(items_in_output) == 1:
-            single_item_name = items_in_output[0]
-            if single_item_name.lower().endswith(('.zip', '.tar', '.gz', '.tar.gz', '.bz2')):
-                logging.info("Plugin produced a single archive. Using it directly.")
-                source_path = os.path.join(outputs_dir, single_item_name)
-                final_path = os.path.join(self.workspace, single_item_name)
-                shutil.move(source_path, final_path)
-                output_archive_path = final_path
-
-        # If the output was not a single archive, create one now.
-        if output_archive_path is None:
-            logging.info("Plugin produced multiple files or non-archive output. Archiving contents.")
-            output_title = self.graph.nodes[output_var_iri]['label'].replace(' ', '_')
-            output_archive_path = shutil.make_archive(os.path.join(self.workspace, output_title), 'zip', outputs_dir)
-
-        self.results_map[output_var_iri] = output_archive_path
-        logging.info("Step successful. Output for '%s' is at: %s", self.graph.nodes[output_var_iri]['label'], output_archive_path)
+        final_output_path = self.executor.finalize_output(
+            outputs_dir, os.path.join(self.workspace, "results"), output_title
+        )
+        
+        self.results_map[output_var_iri] = final_output_path
+        logging.info("Step successful. Output for '%s' is at: %s", output_title, final_output_path)
 
     def run(self):
         try:
-            self._setup_workspace()
-            for node_iri, data in self.graph.nodes(data=True):
-                if data.get('type') == 'Dataset' and data.get('accessURL'):
-                    dataset_path = self._fetch_artifact(node_iri)
-                    var_iri = next(p for p in self.graph.predecessors(node_iri))
-                    self.results_map[var_iri] = dataset_path
+            self.executor.setup_main_workspace(self.workspace)
+            all_step_outputs = {
+                succ_iri
+                for node_iri, data in self.graph.nodes(data=True) if data.get('type') == 'Step'
+                for succ_iri in self.graph.successors(node_iri) if self.graph.nodes[succ_iri].get('type') == 'Variable'
+            }
             
+            for node_iri, data in self.graph.nodes(data=True):
+                 if data.get('type') == 'Dataset' and data.get('accessURLs'):
+                    var_iri = next(p for p in self.graph.predecessors(node_iri))
+                    if var_iri not in all_step_outputs:
+                        dataset_title = data['label'].replace(' ', '_')
+                        dataset_dir = os.path.join(self.workspace, "initial_datasets", dataset_title)
+                        for url in data['accessURLs']:
+                            self.executor.fetch_file(url, dataset_dir)
+                        self.results_map[var_iri] = dataset_dir
+
             execution_order = list(nx.topological_sort(self.graph))
             for node_iri in execution_order:
                 if self.graph.nodes[node_iri].get('type') == 'Step':
@@ -347,53 +432,69 @@ class Orchestrator:
             logging.error("Error: %s", e, exc_info=False)
             raise
 
-# --- Main Execution Block (using Typer) ---
+
+# --- Main Execution Block (Refactored for Dry Run) ---
 app = typer.Typer(
     help="A command-line tool to build, visualize, and execute semantic pipeline workflows.",
-    add_completion=False
+    add_completion=False,
+    no_args_is_help=True
 )
 
-@app.command()
-def run_pipeline(
-    start_uuid: str = typer.Argument(
-        "66f87504-48e7-4ef5-8ff9-340ec44b5ec6",
-        help="The starting pipeline UUID to process."
-    ),
-    visualize_only: bool = typer.Option(
-        False,
-        "--visualize-only",
-        help="Only build and visualize the graph, do not execute the pipeline."
-    )
-):
-    """
-    Builds and executes a complex pipeline workflow starting from a given UUID.
-    """
-    if not visualize_only and shutil.which("docker") is None:
-        logging.error("Docker is not installed or not in the system's PATH. Cannot execute pipeline.")
-        raise typer.Exit(code=1)
-
-    typer.echo("--- Building Combined Workflow Graph for All Dependent Pipelines ---")
+def _build_graph_for_command(start_uuid: str, regenerate_uuids: Optional[List[str]] = None) -> nx.DiGraph:
+    """Helper function to build the graph for any command."""
+    typer.echo(f"--- Building Combined Workflow Graph (starting from {start_uuid}) ---")
     builder = CombinedWorkflowBuilder(api_base_url=METADATA_STORE_BASE_URL)
-    final_graph = builder.build_graph(start_uuid)
+    final_graph = builder.build_graph(start_uuid, regenerate_uuids=regenerate_uuids)
 
     if not final_graph or final_graph.number_of_nodes() == 0:
         logging.critical("Failed to build a graph. Please check the starting UUID and API endpoint.")
         raise typer.Exit(code=1)
 
     logging.info(f"Successfully built combined graph with {final_graph.number_of_nodes()} nodes and {final_graph.number_of_edges()} edges.")
+    return final_graph
+
+@app.command()
+def visualize(
+    start_uuid: str = typer.Argument(..., help="The starting pipeline UUID to visualize.")
+):
+    """Builds and visualizes the pipeline workflow graph without executing it."""
+    final_graph = _build_graph_for_command(start_uuid)
+    typer.echo("Visualizing graph...")
+    visualize_graph(final_graph)
+
+@app.command()
+def execute(
+    start_uuid: str = typer.Argument(..., help="The starting pipeline UUID to execute."),
+    regenerate: Optional[List[str]] = typer.Option(
+        None, "--regenerate", "-r",
+        help="A dataset UUID to regenerate. Can be used multiple times."
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run",
+        help="Print the execution steps without running them."
+    )
+):
+    """Builds and executes the full pipeline workflow."""
+    if not dry_run and shutil.which("docker") is None:
+        logging.error("Docker is not installed or not in the system's PATH. Cannot execute pipeline.")
+        raise typer.Exit(code=1)
+
+    final_graph = _build_graph_for_command(start_uuid, regenerate_uuids=regenerate)
     
-    if visualize_only:
-        typer.echo("Visualizing graph as requested...")
-        visualize_graph(final_graph)
+    if dry_run:
+        typer.secho("\n--- Starting Dry Run ---", fg=typer.colors.YELLOW, bold=True)
+        step_executor = DryRunExecutor()
     else:
         typer.echo("\n--- Starting Pipeline Orchestration ---")
-        try:
-            orchestrator = Orchestrator(final_graph)
-            orchestrator.run()
-        except Exception:
-            # The orchestrator logs the detailed error, here we just confirm failure.
+        step_executor = LiveExecutor()
+
+    try:
+        orchestrator = Orchestrator(final_graph, executor=step_executor)
+        orchestrator.run()
+    except Exception:
+        if not dry_run:
             typer.secho("Execution failed. Check logs for details.", fg=typer.colors.RED, bold=True)
-            raise typer.Exit(code=1)
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
