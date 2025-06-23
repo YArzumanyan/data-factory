@@ -49,12 +49,8 @@ public class DatasetController {
             String artifactId = artifactRepositoryService.uploadArtifact(file);
             log.info("Artifact uploaded with ID: {}", artifactId);
 
-            // Determine file extension
-            String originalFilename = Objects.requireNonNull(file.getOriginalFilename());
-            String fileExtension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1);
-
             // Generate RDF for dataset
-            String rdfData = rdfService.generateDatasetRdf(title, description, artifactId, fileExtension);
+            String rdfData = rdfService.generateDatasetRdf(title, description, artifactId);
             log.info("Generated RDF for dataset: {}", rdfData);
 
             // Submit RDF to metadata store

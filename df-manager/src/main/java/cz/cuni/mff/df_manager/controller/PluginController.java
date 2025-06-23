@@ -54,7 +54,7 @@ public class PluginController {
             String fileExtension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1);
 
             // Generate RDF for plugin
-            String rdfData = rdfService.generatePluginRdf(title, description, artifactId, fileExtension);
+            String rdfData = rdfService.generatePluginRdf(title, description, artifactId);
 
             // Submit RDF to metadata store
             String response = metadataStoreService.submitRdf("pl", rdfData);

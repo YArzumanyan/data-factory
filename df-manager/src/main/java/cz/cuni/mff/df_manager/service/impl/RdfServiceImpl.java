@@ -62,9 +62,8 @@ public class RdfServiceImpl implements RdfService {
      * @param title The title of the resource
      * @param description The description of the resource
      * @param artifactId The artifact ID for the distribution access URL
-     * @param fileExtension The file extension for determining MIME type
      */
-    private void addCommonResourceProperties(Model model, Resource resource, String title, String description, String artifactId, String fileExtension) {
+    private void addCommonResourceProperties(Model model, Resource resource, String title, String description, String artifactId) {
         // Add title and description
         if (title != null && !title.isEmpty()) {
             resource.addProperty(
@@ -96,13 +95,6 @@ public class RdfServiceImpl implements RdfService {
                 model.createResource(downloadUrl)
         );
 
-        // Add a compress format
-        String mimeType = determineMimeType(fileExtension);
-        distribution.addProperty(
-                model.createProperty(DCAT_NS + "compressFormat"),
-                model.createResource("http://www.iana.org/assignments/media-types/" + mimeType)
-        );
-
         // Link distribution to resource
         resource.addProperty(
                 model.createProperty(DCAT_NS + "distribution"),
@@ -111,7 +103,7 @@ public class RdfServiceImpl implements RdfService {
     }
 
     @Override
-    public String generateDatasetRdf(String title, String description, String artifactId, String fileExtension) {
+    public String generateDatasetRdf(String title, String description, String artifactId) {
         // Create a new model
         Model model = ModelFactory.createDefaultModel();
         
@@ -132,7 +124,7 @@ public class RdfServiceImpl implements RdfService {
         );
         
         // Add title and description
-        addCommonResourceProperties(model, dataset, title, description, artifactId, fileExtension);
+        addCommonResourceProperties(model, dataset, title, description, artifactId);
         
         // Convert model to Turtle format
         java.io.StringWriter sw = new java.io.StringWriter();
@@ -141,7 +133,7 @@ public class RdfServiceImpl implements RdfService {
     }
 
     @Override
-    public String generatePluginRdf(String title, String description, String artifactId, String fileExtension) {
+    public String generatePluginRdf(String title, String description, String artifactId) {
         // Create a new model
         Model model = ModelFactory.createDefaultModel();
         
@@ -163,7 +155,7 @@ public class RdfServiceImpl implements RdfService {
         );
         
         // Add title and description
-        addCommonResourceProperties(model, plugin, title, description, artifactId, fileExtension);
+        addCommonResourceProperties(model, plugin, title, description, artifactId);
 
         // Convert model to Turtle format
         java.io.StringWriter sw = new java.io.StringWriter();
@@ -431,7 +423,6 @@ public class RdfServiceImpl implements RdfService {
             case "tar.gz", "tgz", "gz", "gzip" -> "application/gzip";
             case "tar.bz2", "tbz" -> "application/x-bzip2";
             case "7z" -> "application/x-7z-compressed";
-            case "jar" -> "application/java-archive";
             default -> "application/octet-stream";
         };
     }
