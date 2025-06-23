@@ -1,33 +1,28 @@
 import os
 import sys
-import zipfile
 
 def main():
     input_dir = "/app/in"
     output_dir = "/app/out"
 
     try:
-        # Find the first .zip archive in the input directory
-        input_archive_path = None
-        for filename in os.listdir(input_dir):
-            if filename.lower().endswith(".zip"):
-                input_archive_path = os.path.join(input_dir, filename)
+        # find the first file in the input directory recursively
+        input_path = None
+        for root, dirs, files in os.walk(input_dir):
+            for filename in files:
+                input_path = os.path.join(root, filename)
                 break
-
-        if not input_archive_path:
-            print("Error: No .zip archive found in input directory.", file=sys.stderr)
-            sys.exit(2)
-
-        content_to_reverse = ""
-        with zipfile.ZipFile(input_archive_path, 'r') as archive:
-            for name in archive.namelist():
-                if name.lower().endswith(".txt"):
-                    with archive.open(name) as text_file:
-                        content_to_reverse = text_file.read().decode('utf-8')
-                        break
+            
+        if input_path is None:
+            print("No text file found in the input directory.", file=sys.stderr)
+            sys.exit(1)
+            
+        # Read the content of the text file
+        with open(input_path, 'r') as file:
+            content = file.read()
 
         # Perform the transformation
-        reversed_content = content_to_reverse[::-1]
+        reversed_content = content[::-1]
 
         # Write the result to a new file in the output directory
         with open(os.path.join(output_dir, "reversed.txt"), 'w') as f:

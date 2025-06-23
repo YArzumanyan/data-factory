@@ -1,7 +1,6 @@
 import os
 import sys
 import shutil
-import zipfile
 
 def main():
     input_dir = "/app/in"
@@ -9,33 +8,24 @@ def main():
     keyword = "quick"
 
     try:
-        # Find the first .zip archive in the input directory
-        input_archive_path = None
-        for filename in os.listdir(input_dir):
-            if filename.lower().endswith(".zip"):
-                input_archive_path = os.path.join(input_dir, filename)
+        # find the first file in the input directory recursively
+        input_path = None
+        for root, dirs, files in os.walk(input_dir):
+            for filename in files:
+                input_path = os.path.join(root, filename)
                 break
+            
+        if input_path is None:
+            print("No text file found in the input directory.", file=sys.stderr)
+            sys.exit(1)
+            
+        # Read the content of the text file
+        with open(input_path, 'r') as file:
+            content = file.read()
 
-        if not input_archive_path:
-            print("Error: No .zip archive found in input directory.", file=sys.stderr)
-            sys.exit(2)
-
-        # Check content without fully extracting
-        is_valid = False
-        with zipfile.ZipFile(input_archive_path, 'r') as archive:
-            for name in archive.namelist():
-                if name.lower().endswith(".txt"):
-                    with archive.open(name) as text_file:
-                        content = text_file.read().decode('utf-8')
-                        if keyword in content:
-                            is_valid = True
-                            break
-                if is_valid:
-                    break
-
-        if is_valid:
-            # Pass the original, untouched archive to the output
-            shutil.copy(input_archive_path, output_dir)
+        if keyword in content:
+            # Pass the original, untouched file to the output
+            shutil.copy(input_path, output_dir)
             print(f"Validation successful: Keyword '{keyword}' found.")
             sys.exit(0)
         else:

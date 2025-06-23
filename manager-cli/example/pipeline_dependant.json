@@ -1,0 +1,28 @@
+{
+  "title": "Article processing",
+  "description": "This pipeline processes articles by validating and reversing the data.",
+  "variables": [
+    {
+      "id": "article-var",
+      "title": "Article Raw Input",
+      "datasetUuid": "629e0906-9b1b-4cd8-b11c-dab62aff1bc5"
+    },
+    {
+      "id": "p2-final-var",
+      "title": "Final Reversed Output Var"
+    }
+  ],
+  "steps": [
+    {
+      "id": "validate-step",
+      "title": "Validate Raw",
+      "pluginUuid": "63426768-0002-4ca8-925f-ff6ddcfa5a20",
+      "inputs": [
+        "article-var"
+      ],
+      "outputs": [
+        "p2-final-var"
+      ]
+    }
+  ]
+}
