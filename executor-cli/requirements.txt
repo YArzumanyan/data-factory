@@ -1,6 +1,5 @@
 rdflib
 networkx
-docker
 aiohttp
 pyyaml
 matplotlib
@@ -9,3 +8,4 @@ typer
 dotenv
 python-magic
 python-magic-bin
+rich
