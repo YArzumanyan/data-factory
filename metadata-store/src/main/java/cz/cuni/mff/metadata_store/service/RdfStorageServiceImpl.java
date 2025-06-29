@@ -381,4 +381,33 @@ public class RdfStorageServiceImpl implements RdfStorageService {
         log.info("Retrieved {} triples from the default graph.", storeModelCopy.size());
         return storeModelCopy;
     }
+
+    @Override
+    public String updateDataset(String datasetUuid, Model rdfData) throws NoSuchElementException {
+        String resourceUri = uriService.buildDatasetUri(datasetUuid);
+        log.info("Updating dataset with URI: {}", resourceUri);
+
+        if (rdfData == null || rdfData.isEmpty()) {
+            throw new IllegalArgumentException("Input RDF model cannot be null or empty.");
+        }
+
+        dataset.executeWrite(() -> {
+            Model defaultModel = dataset.getDefaultModel();
+            Resource resource = defaultModel.getResource(resourceUri);
+            if (resource == null) {
+                log.warn("Dataset not found for URI: {}", resourceUri);
+                throw new NoSuchElementException("Dataset with URI " + resourceUri + " not found.");
+            }
+
+            // Clear existing triples for this resource
+            defaultModel.removeAll(resource, null, null);
+
+            // Add the new RDF data
+            defaultModel.add(rdfData);
+            log.info("Successfully updated dataset with URI: {}", resourceUri);
+        });
+
+        log.debug("Updated dataset with URI: {} with {} triples", resourceUri, rdfData.size());
+        return resourceUri;
+    }
 }

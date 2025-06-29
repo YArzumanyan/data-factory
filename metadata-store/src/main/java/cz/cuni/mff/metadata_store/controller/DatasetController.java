@@ -51,6 +51,35 @@ public class DatasetController implements RdfController {
         this.rdfStorageService = rdfStorageService;
     }
 
+    @PostMapping(value = "/{datasetId}", consumes = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE, MediaType.TEXT_PLAIN_VALUE})
+    @Operation(summary = "Update an existing dataset RDF graph",
+            description = "Updates an existing dataset (dcat:Dataset) with a new RDF graph. The provided graph must contain the complete updated state of the dataset.",
+            parameters = @Parameter(name = "datasetId", description = "UUID of the dataset to update", required = true),
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Dataset updated successfully"),
+                    @ApiResponse(responseCode = "404", description = "Dataset not found", content = @Content),
+                    @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
+            })
+    public ResponseEntity<String> updateDataset(
+            InputStream requestBody,
+            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType, @PathVariable String datasetId) {
+
+        log.debug("Attempting to update dataset with ID: {} and content type: {}", datasetId, contentType);
+        Model datasetModel = parseRdfData(requestBody, contentType);
+
+        try {
+            rdfStorageService.updateDataset(datasetId, datasetModel);
+            log.info("Dataset updated successfully with ID: {}", datasetId);
+            return ResponseEntity.status(HttpStatus.CREATED).body(datasetId);
+        } catch (NoSuchElementException e) {
+            log.warn("Dataset not found for ID: {}", datasetId);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid dataset graph provided for update: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
     @PostMapping(consumes = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE, MediaType.TEXT_PLAIN_VALUE})
     @Operation(summary = "Store a dataset RDF graph",
             description = "Receives and persists a pre-validated RDF graph for a dataset (dcat:Dataset). Called by Middleware.",

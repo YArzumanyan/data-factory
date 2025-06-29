@@ -86,4 +86,14 @@ public interface RdfStorageService {
      * @return A Jena Model containing all triples in the default graph.
      */
     Model getEntireStoreModel();
+
+    /**
+     * Overwrites dataset
+     * with the given UUID with the provided RDF data.
+     *
+     * @param datasetUuid The UUID of the dataset to update.
+     * @param rdfData The RDF data in Turtle format to update the dataset with.
+     * @return The updated RDF data in Turtle format.
+     */
+    String updateDataset(String datasetUuid, Model rdfData) throws NoSuchElementException;
 }

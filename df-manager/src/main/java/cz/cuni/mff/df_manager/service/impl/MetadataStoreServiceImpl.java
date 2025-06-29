@@ -13,7 +13,8 @@ import org.springframework.web.client.RestTemplate;
 import static java.util.Collections.singletonList;
 
 /**
- * Implementation of the MetadataStoreService that communicates with the metadata store via REST.
+ * Implementation of the MetadataStoreService that communicates with the
+ * metadata store via REST.
  */
 @Service
 @RequiredArgsConstructor
@@ -35,24 +36,24 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
     private String pluginsEndpoint;
 
     @Override
-    public String submitRdf(String resourceType, String rdfData) {
+    public String submitRdf(String resourceType, String rdfData, String uuid) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(RdfMediaType.TEXT_TURTLE);
 
         HttpEntity<String> requestEntity = new HttpEntity<>(rdfData, headers);
+        String uuidPath = uuid != null ? "/" + uuid : "";
 
         String endpoint = switch (resourceType) {
             case "ds" -> datasetsEndpoint;
             case "pl" -> pluginsEndpoint;
             case "pipe" -> pipelinesEndpoint;
             default -> throw new IllegalArgumentException("Unknown resource type: " + resourceType);
-        };
+        } + uuidPath;
 
         ResponseEntity<String> response = restTemplate.postForEntity(
                 endpoint,
                 requestEntity,
-                String.class
-        );
+                String.class);
 
         return response.getBody();
     }
@@ -65,7 +66,7 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
             case "pipe" -> pipelinesEndpoint + "/" + uuid;
             default ->
                 // Fall back to generic resources endpoint
-                    resourcesEndpoint + "/" + uuid;
+                resourcesEndpoint + "/" + uuid;
         };
 
         // Use specific endpoints for known resource types
@@ -79,8 +80,7 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
                 url,
                 HttpMethod.GET,
                 requestEntity,
-                String.class
-        );
+                String.class);
 
         return response.getBody();
     }
@@ -93,7 +93,7 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
             case "pipe" -> pipelinesEndpoint + "/" + uuid;
             default ->
                 // Fall back to generic resources endpoint
-                    resourcesEndpoint + "/" + uuid;
+                resourcesEndpoint + "/" + uuid;
         };
 
         // Use specific endpoints for known resource types
@@ -102,11 +102,12 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
             ResponseEntity<Void> response = restTemplate.exchange(
                     url,
                     HttpMethod.HEAD,
-                    new HttpEntity<>(new HttpHeaders() {{
-                        setAccept(singletonList(RdfMediaType.TEXT_TURTLE));
-                    }}),
-                    Void.class
-            );
+                    new HttpEntity<>(new HttpHeaders() {
+                        {
+                            setAccept(singletonList(RdfMediaType.TEXT_TURTLE));
+                        }
+                    }),
+                    Void.class);
 
             return response.getStatusCode().is2xxSuccessful();
         } catch (HttpClientErrorException.NotFound e) {

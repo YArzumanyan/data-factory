@@ -13,7 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Objects;
+import java.util.List;
 
 /**
  * REST controller for dataset operations.
@@ -28,36 +28,40 @@ public class DatasetController {
     private final MetadataStoreService metadataStoreService;
     private final RdfService rdfService;
 
+    private ResponseEntity<String> createDataset(String title, String description, List<MultipartFile> files) {
+        // Upload the files to artifact repository
+        List<String> artifactIds = artifactRepositoryService.uploadArtifacts(files);
+        log.info("Artifacts uploaded with IDs: {}", artifactIds);
+
+        // Generate RDF for dataset with multiple distributions
+        String rdfData = rdfService.generateDatasetRdf(title, description, artifactIds);
+        log.info("Generated RDF for multi-file dataset: {}", rdfData);
+
+        // Submit RDF to metadata store
+        String response = metadataStoreService.submitRdf("ds", rdfData, null);
+
+        log.info("Multi-file dataset RDF stored successfully, response: {}", response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     /**
-     * Uploads a dataset file and creates metadata for it.
+     * Uploads dataset files and creates metadata for them.
      *
-     * @param file The dataset file
+     * @param files The list of dataset files
      * @param title The title of the dataset
      * @param description The description of the dataset
      * @return RDF data for the created dataset
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = RdfMediaType.TEXT_TURTLE_VALUE)
     public ResponseEntity<String> uploadDataset(
-            @RequestParam("file") MultipartFile file,
+            @RequestParam("files") List<MultipartFile> files,
             @RequestParam("title") String title,
             @RequestParam(value = "description", required = false) String description) {
 
-        log.info("Uploading dataset: {}", title);
+        log.info("Uploading dataset: {}, file count: {}", title, files.size());
 
         try {
-            // Upload the file to artifact repository
-            String artifactId = artifactRepositoryService.uploadArtifact(file);
-            log.info("Artifact uploaded with ID: {}", artifactId);
-
-            // Generate RDF for dataset
-            String rdfData = rdfService.generateDatasetRdf(title, description, artifactId);
-            log.info("Generated RDF for dataset: {}", rdfData);
-
-            // Submit RDF to metadata store
-            String response = metadataStoreService.submitRdf("ds", rdfData);
-
-            log.info("Dataset RDF stored successfully, response: {}", response);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            return createDataset(title, description, files);
         } catch (Exception e) {
             log.error("Error uploading dataset", e);
             return ResponseEntity.badRequest().build();
@@ -80,6 +84,50 @@ public class DatasetController {
         } catch (Exception e) {
             log.error("Error retrieving dataset", e);
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    private ResponseEntity<String> updateDatasetDist(String uuid, List<MultipartFile> files) {
+        // Validate that the dataset exists
+        if (!metadataStoreService.resourceExists("ds", uuid)) {
+            log.error("Dataset not found: {}", uuid);
+            return ResponseEntity.notFound().build();
+        }
+
+        // Upload the files to artifact repository
+        List<String> artifactIds = artifactRepositoryService.uploadArtifacts(files);
+        log.info("Artifacts uploaded with IDs: {}", artifactIds);
+
+        // Update the dataset's distributions
+        String rdfData = rdfService.updateDatasetDistributions(uuid, artifactIds);
+        log.info("Updated RDF for dataset: {}", rdfData);
+
+        // Submit updated RDF to metadata store
+        String response = metadataStoreService.submitRdf("ds", rdfData, uuid);
+
+        log.info("Dataset distributions updated successfully, response: {}", response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Updates the distributions of an existing dataset with files.
+     *
+     * @param uuid The UUID of the dataset
+     * @param files The list of files for the new distributions
+     * @return RDF data for the updated dataset
+     */
+    @PostMapping(value = "/{uuid}/distribution", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = RdfMediaType.TEXT_TURTLE_VALUE)
+    public ResponseEntity<String> updateDatasetDistributions(
+            @PathVariable String uuid,
+            @RequestParam("files") List<MultipartFile> files) {
+
+        log.info("Updating distributions for dataset: {}, file count: {}", uuid, files.size());
+
+        try {
+            return updateDatasetDist(uuid, files);
+        } catch (Exception e) {
+            log.error("Error updating dataset distributions", e);
+            return ResponseEntity.badRequest().build();
         }
     }
 }

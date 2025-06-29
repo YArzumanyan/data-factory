@@ -57,7 +57,7 @@ public class PluginController {
             String rdfData = rdfService.generatePluginRdf(title, description, artifactId);
 
             // Submit RDF to metadata store
-            String response = metadataStoreService.submitRdf("pl", rdfData);
+            String response = metadataStoreService.submitRdf("pl", rdfData, null);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {

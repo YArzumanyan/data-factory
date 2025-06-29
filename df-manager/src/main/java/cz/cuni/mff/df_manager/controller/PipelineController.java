@@ -44,7 +44,7 @@ public class PipelineController {
             String rdfData = rdfService.generatePipelineRdf(pipelineConfig);
 
             // Submit RDF to metadata store
-            String response = metadataStoreService.submitRdf("pipe", rdfData);
+            String response = metadataStoreService.submitRdf("pipe", rdfData, null);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {

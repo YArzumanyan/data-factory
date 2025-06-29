@@ -16,9 +16,12 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Implementation of the ArtifactRepositoryService that communicates with the artifact repository via REST.
+ * Implementation of the ArtifactRepositoryService that communicates with the
+ * artifact repository via REST.
  */
 @Service
 @RequiredArgsConstructor
@@ -49,18 +52,35 @@ public class ArtifactRepositoryServiceImpl implements ArtifactRepositoryService 
             body.add("file", fileResource);
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-            
+
             ResponseEntity<String> response = restTemplate.postForEntity(
                     uploadEndpoint,
                     requestEntity,
-                    String.class
-            );
-            
+                    String.class);
+
             // Assuming the response body contains the artifact ID
             return response.getBody();
         } catch (IOException e) {
             log.error("Error uploading artifact", e);
             throw new RuntimeException("Failed to upload artifact: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    public List<String> uploadArtifacts(List<MultipartFile> files) {
+        List<String> artifactIds = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            try {
+                String artifactId = uploadArtifact(file);
+                artifactIds.add(artifactId);
+                log.info("Uploaded artifact with ID: {}", artifactId);
+            } catch (Exception e) {
+                log.error("Error uploading artifact: {}", file.getOriginalFilename(), e);
+                throw new RuntimeException("Failed to upload artifacts: " + e.getMessage(), e);
+            }
+        }
+
+        return artifactIds;
     }
 }

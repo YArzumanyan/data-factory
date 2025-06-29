@@ -8,8 +8,9 @@ import json
 import sys
 import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import mimetypes
+from contextlib import ExitStack
 
 import typer
 import requests
@@ -17,7 +18,6 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
 app = typer.Typer(
@@ -35,27 +35,25 @@ class MiddlewareClient:
         self.base_url = base_url.rstrip('/')
         self.session = requests.Session()
 
-    def _post_file(self, file_path: Path, title: str, description: str, endpoint: str, item_name: str) -> Optional[str]:
+    def _post_files(self, file_paths: List[Path], endpoint: str, item_name: str, data: Optional[Dict[str, Any]] = None, file_key: str = "file", success_verb: str = "created") -> Optional[str]:
         """
-        Helper method to post a file to the middleware.
+        Helper method to post one or more files to the middleware.
         
         Args:
-            file_path: Path to the file.
-            title: Title for the item.
-            description: Description for the item.
+            file_paths: List of paths to the files.
             endpoint: API endpoint (e.g., "datasets", "plugins").
             item_name: Name of the item for messages (e.g., "dataset", "plugin").
+            data: Optional dictionary of additional form data.
+            file_key: The key to use for files in the multipart form data.
+            success_verb: The verb to use in the success message (e.g., "created", "updated").
             
         Returns:
-            UUID of the created item on success, None on failure.
+            UUID of the affected item on success, None on failure.
         """
-        if not file_path.exists():
-            console.print(f"[red]✗ File {file_path} does not exist[/red]")
-            return None
-        
-        content_type, _ = mimetypes.guess_type(str(file_path))
-        if not content_type:
-            content_type = 'application/octet-stream'
+        for file_path in file_paths:
+            if not file_path.exists():
+                console.print(f"[red]✗ File {file_path} does not exist[/red]")
+                return None
         
         try:
             with Progress(
@@ -66,23 +64,28 @@ class MiddlewareClient:
                 task_description = f"Uploading {item_name}..."
                 task = progress.add_task(task_description, total=None)
                 
-                with open(file_path, 'rb') as f:
-                    files = {'file': (file_path.name, f, content_type)}
-                    data = {'title': title, 'description': description}
+                with ExitStack() as stack:
+                    files_to_upload = []
+                    for file_path in file_paths:
+                        content_type, _ = mimetypes.guess_type(str(file_path))
+                        if not content_type:
+                            content_type = 'application/octet-stream'
+                        
+                        f = stack.enter_context(open(file_path, 'rb'))
+                        files_to_upload.append((file_key, (file_path.name, f, content_type)))
                     
                     url = f"{self.base_url}/api/v1/{endpoint}"
-                    response = self.session.post(url, files=files, data=data)
+                    response = self.session.post(url, files=files_to_upload, data=data)
                 
                 progress.remove_task(task)
                 
                 if response.status_code == 201:
                     uri = response.text
                     uuid = uri.split('#')[-1]
-                    console.print(f"[dim]full uri: {uri}[/dim]")
-                    console.print(f"[green]✓ {item_name.capitalize()} created successfully with UUID: {uuid}[/green]")
-                    return uri
+                    console.print(f"[green]✓ {item_name.capitalize()} {success_verb} successfully with UUID: {uuid}[/green]")
+                    return uuid
                 else:
-                    console.print(f"[red]✗ Failed to create {item_name}: {response.status_code} - {response.text}[/red]")
+                    console.print(f"[red]✗ Failed to {success_verb} {item_name}: {response.status_code} - {response.text}[/red]")
                     return None
                     
         except requests.RequestException as e:
@@ -92,20 +95,35 @@ class MiddlewareClient:
             console.print(f"[red]✗ Error posting {item_name}: {e}[/red]")
             return None
 
-    def post_dataset(self, file_path: Path, title: str, description: str) -> Optional[str]:
+    def post_dataset(self, file_paths: List[Path], title: str, description: str) -> Optional[str]:
         """
-        Post a dataset file to the middleware
+        Post dataset files to the middleware
         
         Args:
-            file_path: Path to the dataset file
+            file_paths: Path to the dataset files
             title: Title for the dataset
             description: Description for the dataset
             
         Returns:
             UUID of the created dataset on success, None on failure
         """
-        return self._post_file(file_path, title, description, "datasets", "dataset")
+        data = {'title': title, 'description': description}
+        return self._post_files(file_paths, "datasets", "dataset", data=data, file_key="files")
     
+    def set_dataset_distribution(self, uuid: str, file_paths: List[Path]) -> Optional[str]:
+        """
+        Updates the distributions of an existing dataset with files.
+        
+        Args:
+            uuid: The UUID of the dataset.
+            file_paths: The list of files for the new distributions.
+        
+        Returns:
+            UUID of the updated dataset on success, None on failure.
+        """
+        endpoint = f"datasets/{uuid}/distribution"
+        return self._post_files(file_paths, endpoint, "dataset's distribution", file_key="files", success_verb="set")
+
     def post_plugin(self, file_path: Path, title: str, description: str) -> Optional[str]:
         """
         Post a plugin file to the middleware
@@ -118,7 +136,9 @@ class MiddlewareClient:
         Returns:
             UUID of the created plugin on success, None on failure
         """
-        return self._post_file(file_path, title, description, "plugins", "plugin")
+        data = {'title': title, 'description': description}
+        # Plugin endpoint still expects a single file with key 'file'
+        return self._post_files([file_path], "plugins", "plugin", data=data, file_key="file")
     
     def post_pipeline(self, pipeline_file: Path) -> Optional[str]:
         """
@@ -211,17 +231,30 @@ def main(
 @app.command()
 def dataset(
     ctx: typer.Context,
-    file: Path = typer.Argument(..., help="Path to the dataset file"),
+    files: List[Path] = typer.Argument(..., help="Path to the dataset file(s)."),
     title: str = typer.Option(..., "--title", "-t", help="Title for the dataset"),
     description: str = typer.Option(..., "--description", "-d", help="Description for the dataset")
 ):
-    """Post a dataset file to the middleware"""
+    """Post one or more dataset files to the middleware."""
     client = MiddlewareClient(ctx.obj['url'])
-    uuid = client.post_dataset(file, title, description)
+    uuid = client.post_dataset(files, title, description)
     
     if uuid is None:
         raise typer.Exit(1)
 
+@app.command(name="set-distribution")
+def set_distribution(
+    ctx: typer.Context,
+    uuid: str = typer.Argument(..., help="UUID of the dataset to update."),
+    files: List[Path] = typer.Argument(..., help="Path to the new distribution file(s).")
+):
+    """Set (overwrite) the distributions for a dataset."""
+    client = MiddlewareClient(ctx.obj['url'])
+    result_uuid = client.set_dataset_distribution(uuid, files)
+
+    if result_uuid is None:
+        raise typer.Exit(1)
+    
 @app.command()
 def plugin(
     ctx: typer.Context,
