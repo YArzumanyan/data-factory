@@ -1,6 +1,0 @@
-fastapi
-uvicorn[standard]
-motor
-pydantic
-python-dotenv
-python-multipart 
