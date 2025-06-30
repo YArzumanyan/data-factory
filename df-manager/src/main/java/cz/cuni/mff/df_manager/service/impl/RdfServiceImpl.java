@@ -111,13 +111,6 @@ public class RdfServiceImpl implements RdfService {
     }
 
     @Override
-    public String generateDatasetRdf(String title, String description, String artifactId) {
-        List<String> artifactIds = new ArrayList<>();
-        artifactIds.add(artifactId);
-        return generateDatasetRdf(title, description, artifactIds);
-    }
-
-    @Override
     public String generateDatasetRdf(String title, String description, List<String> artifactIds) {
         if (artifactIds == null || artifactIds.isEmpty()) {
             throw new IllegalArgumentException("At least one artifact ID must be provided");
@@ -488,6 +481,37 @@ public class RdfServiceImpl implements RdfService {
         for (String artifactId : artifactIds) {
             addDistribution(model, dataset, artifactId);
         }
+
+        // Convert model to Turtle format
+        StringWriter sw = new StringWriter();
+        model.write(sw, "TURTLE");
+        return sw.toString();
+    }
+
+    @Override
+    public String updatePluginDistribution(String pluginUuid, String artifactId) {
+        // Validate that the plugin exists
+        if (!metadataStoreService.resourceExists("pl", pluginUuid)) {
+            throw new IllegalArgumentException("Plugin with UUID " + pluginUuid + " does not exist");
+        }
+
+        // Retrieve the existing plugin RDF
+        String existingRdf = metadataStoreService.getResourceRdf("pl", pluginUuid);
+
+        // Parse the existing RDF into a model
+        Model model = ModelFactory.createDefaultModel();
+        model.read(new java.io.StringReader(existingRdf), null, "TURTLE");
+
+        // Get the plugin resource
+        String pluginUri = plNamespace + pluginUuid;
+        Resource plugin = model.getResource(pluginUri);
+
+        // Remove existing distributions
+        Property distributionProperty = model.createProperty(DCAT_NS, "distribution");
+        model.remove(plugin.listProperties(distributionProperty));
+
+        // Add new distribution
+        addDistribution(model, plugin, artifactId);
 
         // Convert model to Turtle format
         StringWriter sw = new StringWriter();

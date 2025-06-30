@@ -97,6 +97,23 @@ public class RdfStorageServiceImpl implements RdfStorageService {
         return primaryResourceUri;
     }
 
+    private Model sparqlConstruct(String queryString) {
+        log.debug("Executing SPARQL CONSTRUCT query: {}", queryString);
+        final Model resultModel = ModelFactory.createDefaultModel();
+
+        dataset.executeRead(() -> {
+            try (QueryExecution qExec = QueryExecutionFactory.create(queryString, dataset)) {
+                qExec.execConstruct(resultModel);
+                resultModel.setNsPrefixes(dataset.getDefaultModel().getNsPrefixMap()); // Copy prefixes
+            } catch (Exception e) {
+                log.error("Error executing SPARQL CONSTRUCT query", e);
+            }
+        });
+
+        log.debug("Constructed model contains {} triples", resultModel.size());
+        return resultModel;
+    }
+
     @Override
     public Optional<Model> getGenericResourceDescription(String resourceUuid) {
         log.debug("Searching for resource with UUID: {}", resourceUuid);
@@ -317,24 +334,7 @@ public class RdfStorageServiceImpl implements RdfStorageService {
                 }
                 """.formatted(resourceUri);
 
-        log.debug("Executing CONSTRUCT query for resource: {}", resourceUri);
-        final Model resultModel = ModelFactory.createDefaultModel();
-
-        dataset.executeRead(() -> {
-            try (QueryExecution qExec = QueryExecutionFactory.create(queryString, dataset)) {
-                qExec.execConstruct(resultModel); // Populate the result model directly
-            } catch (Exception e) {
-                log.error("Error executing CONSTRUCT query for {}", resourceUri, e);
-            }
-        });
-
-        if (resultModel.isEmpty()) {
-            log.debug("No triples found for resource: {}", resourceUri);
-        } else {
-            resultModel.setNsPrefixes(dataset.getDefaultModel().getNsPrefixMap());
-            log.debug("Found {} triples describing resource: {}", resultModel.size(), resourceUri);
-        }
-        return resultModel;
+        return sparqlConstruct(queryString);
     }
 
 
@@ -352,19 +352,27 @@ public class RdfStorageServiceImpl implements RdfStorageService {
                 }
                 """.formatted(resourceType.getURI());
 
-        log.info("Executing CONSTRUCT query to list resources of type: {}", resourceType.getURI());
-        final Model resultModel = ModelFactory.createDefaultModel();
+        return sparqlConstruct(queryString);
+    }
 
-        dataset.executeRead(() -> {
-            try (QueryExecution qExec = QueryExecutionFactory.create(queryString, dataset)) {
-                qExec.execConstruct(resultModel);
-            } catch (Exception e) {
-                log.error("Error executing CONSTRUCT query for listing type {}", resourceType.getURI(), e);
-            }
-        });
-        resultModel.setNsPrefixes(dataset.getDefaultModel().getNsPrefixMap()); // Copy prefixes
-        log.info("Found {} resources of type {}", resultModel.listSubjectsWithProperty(Vocab.type, resourceType).toList().size(), resourceType.getURI());
-        return resultModel;
+    public Model listResourcesWithDistributions(Resource resourceType) {
+        String queryString = """
+                PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+                PREFIX dcat: <http://www.w3.org/ns/dcat#>
+                PREFIX df: <http://example.org/ns/df#>
+                
+                CONSTRUCT { ?s ?p ?o . ?s dcat:distribution ?dist . ?dist ?dp ?do }
+                WHERE {
+                  ?s rdf:type <%s> .
+                  ?s ?p ?o .
+                  OPTIONAL {
+                    ?s dcat:distribution ?dist .
+                    ?dist ?dp ?do .
+                  }
+                }
+                """.formatted(resourceType.getURI());
+
+        return sparqlConstruct(queryString);
     }
 
     @Override
@@ -408,6 +416,35 @@ public class RdfStorageServiceImpl implements RdfStorageService {
         });
 
         log.debug("Updated dataset with URI: {} with {} triples", resourceUri, rdfData.size());
+        return resourceUri;
+    }
+
+    @Override
+    public String updatePlugin(String pluginUuid, Model rdfData) throws NoSuchElementException {
+        String resourceUri = uriService.buildPluginUri(pluginUuid);
+        log.info("Updating plugin with URI: {}", resourceUri);
+
+        if (rdfData == null || rdfData.isEmpty()) {
+            throw new IllegalArgumentException("Input RDF model cannot be null or empty.");
+        }
+
+        dataset.executeWrite(() -> {
+            Model defaultModel = dataset.getDefaultModel();
+            Resource resource = defaultModel.getResource(resourceUri);
+            if (resource == null) {
+                log.warn("Plugin not found for URI: {}", resourceUri);
+                throw new NoSuchElementException("Plugin with URI " + resourceUri + " not found.");
+            }
+
+            // Clear existing triples for this resource
+            defaultModel.removeAll(resource, null, null);
+
+            // Add the new RDF data
+            defaultModel.add(rdfData);
+            log.info("Successfully updated plugin with URI: {}", resourceUri);
+        });
+
+        log.debug("Updated plugin with URI: {} with {} triples", resourceUri, rdfData.size());
         return resourceUri;
     }
 }

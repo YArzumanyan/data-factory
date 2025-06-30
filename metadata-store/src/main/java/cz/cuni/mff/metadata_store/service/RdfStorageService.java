@@ -81,6 +81,15 @@ public interface RdfStorageService {
     Model listResources(Resource resourceType);
 
     /**
+     * Retrieves an RDF graph containing descriptions of all resources of a specific type
+     * (e.g., all dcat:Dataset or df:Plugin), including their distributions.
+     *
+     * @param resourceType The RDF class (Resource) of the resources to list (e.g., Vocab.Dataset).
+     * @return A Jena Model containing the descriptions of all matching resources with their distributions.
+     */
+    Model listResourcesWithDistributions(Resource resourceType);
+
+    /**
      * Retrieves a copy of the entire default graph from the RDF store.
      *
      * @return A Jena Model containing all triples in the default graph.
@@ -96,4 +105,14 @@ public interface RdfStorageService {
      * @return The updated RDF data in Turtle format.
      */
     String updateDataset(String datasetUuid, Model rdfData) throws NoSuchElementException;
+
+    /**
+     * Overwrites plugin
+     * with the given UUID with the provided RDF data.
+     *
+     * @param pluginUuid The UUID of the plugin to update.
+     * @param rdfData The RDF data in Turtle format to update the plugin with.
+     * @return The updated RDF data in Turtle format.
+     */
+    String updatePlugin(String pluginUuid, Model rdfData) throws NoSuchElementException;
 }

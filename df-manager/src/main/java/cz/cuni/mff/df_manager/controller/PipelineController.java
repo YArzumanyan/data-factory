@@ -1,6 +1,5 @@
 package cz.cuni.mff.df_manager.controller;
 
-import cz.cuni.mff.df_manager.model.RdfResponse;
 import cz.cuni.mff.df_manager.model.pipeline.PipelineConfig;
 import cz.cuni.mff.df_manager.service.MetadataStoreService;
 import cz.cuni.mff.df_manager.service.RdfService;
@@ -91,6 +90,24 @@ public class PipelineController {
         } catch (Exception e) {
             log.error("Error retrieving pipeline", e);
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Lists all pipelines.
+     *
+     * @return RDF data for all pipelines
+     */
+    @GetMapping
+    public ResponseEntity<String> listPipelines() {
+        log.info("Listing all pipelines");
+
+        try {
+            String rdfData = metadataStoreService.getResourceRdf("pipe", null);
+            return ResponseEntity.ok(rdfData);
+        } catch (Exception e) {
+            log.error("Error listing pipelines", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

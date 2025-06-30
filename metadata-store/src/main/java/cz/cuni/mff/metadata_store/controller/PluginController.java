@@ -16,13 +16,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 @RestController
 @RequestMapping("/api/v1/plugins")
@@ -34,9 +33,9 @@ public class PluginController implements RdfController {
     private final RdfStorageService rdfStorageService;
 
     private static final String[] SUPPORTED_RDF_MEDIA_TYPES = {
-        RdfMediaType.TEXT_TURTLE_VALUE,
-        RdfMediaType.APPLICATION_LD_JSON_VALUE,
-        RdfMediaType.APPLICATION_RDF_XML_VALUE
+            RdfMediaType.TEXT_TURTLE_VALUE,
+            RdfMediaType.APPLICATION_LD_JSON_VALUE,
+            RdfMediaType.APPLICATION_RDF_XML_VALUE
     };
 
     @Override
@@ -49,14 +48,13 @@ public class PluginController implements RdfController {
         this.rdfStorageService = rdfStorageService;
     }
 
-    @PostMapping(consumes = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
-    @Operation(summary = "Store a plugin RDF graph",
-            description = "Receives and persists a pre-validated RDF graph for a plugin (df:Plugin). Called by Middleware.",
-            responses = {
-                    @ApiResponse(responseCode = "201", description = "Plugin RDF stored successfully", headers = @io.swagger.v3.oas.annotations.headers.Header(name = "Location", description = "URI of the created plugin resource")),
-                    @ApiResponse(responseCode = "400", description = "Malformed RDF syntax or missing df:Plugin resource", content = @Content),
-                    @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
-            })
+    @PostMapping(consumes = { RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE,
+            RdfMediaType.APPLICATION_RDF_XML_VALUE })
+    @Operation(summary = "Store a plugin RDF graph", description = "Receives and persists a pre-validated RDF graph for a plugin (df:Plugin). Called by Middleware.", responses = {
+            @ApiResponse(responseCode = "201", description = "Plugin RDF stored successfully", headers = @io.swagger.v3.oas.annotations.headers.Header(name = "Location", description = "URI of the created plugin resource")),
+            @ApiResponse(responseCode = "400", description = "Malformed RDF syntax or missing df:Plugin resource", content = @Content),
+            @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
+    })
     public ResponseEntity<String> createPlugin(
             InputStream requestBody,
             @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) {
@@ -74,14 +72,42 @@ public class PluginController implements RdfController {
         }
     }
 
-    @GetMapping(value = "/{pluginId}", produces = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
-    @Operation(summary = "Get plugin definition RDF by ID",
-            parameters = @Parameter(name = "pluginId", description = "UUID of the plugin", required = true),
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "Plugin definition in requested RDF format"),
-                    @ApiResponse(responseCode = "404", description = "Plugin not found", content = @Content),
-                    @ApiResponse(responseCode = "406", description = "Unsupported Accept header format", content = @Content)
-            })
+    @PostMapping(value = "/{pluginId}", consumes = { RdfMediaType.TEXT_TURTLE_VALUE,
+            RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE,
+            MediaType.TEXT_PLAIN_VALUE })
+    @Operation(summary = "Update an existing plugin RDF graph", description = "Updates an existing plugin (df:Plugin) with a new RDF graph. The provided graph must contain the complete updated state of the plugin.", parameters = @Parameter(name = "pluginId", description = "UUID of the plugin to update", required = true), responses = {
+            @ApiResponse(responseCode = "200", description = "Plugin updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Plugin not found", content = @Content),
+            @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
+    })
+    public ResponseEntity<String> updatePlugin(
+            InputStream requestBody,
+            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType,
+            @PathVariable String pluginId) {
+
+        log.debug("Attempting to update plugin with ID: {} and content type: {}", pluginId, contentType);
+        Model pluginModel = parseRdfData(requestBody, contentType);
+
+        try {
+            rdfStorageService.updatePlugin(pluginId, pluginModel);
+            log.info("Plugin updated successfully with ID: {}", pluginId);
+            return ResponseEntity.status(HttpStatus.OK).body(pluginId);
+        } catch (NoSuchElementException e) {
+            log.warn("Plugin not found for ID: {}", pluginId);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid plugin graph provided for update: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @GetMapping(value = "/{pluginId}", produces = { RdfMediaType.TEXT_TURTLE_VALUE,
+            RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE })
+    @Operation(summary = "Get plugin definition RDF by ID", parameters = @Parameter(name = "pluginId", description = "UUID of the plugin", required = true), responses = {
+            @ApiResponse(responseCode = "200", description = "Plugin definition in requested RDF format"),
+            @ApiResponse(responseCode = "404", description = "Plugin not found", content = @Content),
+            @ApiResponse(responseCode = "406", description = "Unsupported Accept header format", content = @Content)
+    })
     public ResponseEntity<String> getPlugin(
             @PathVariable String pluginId,
             @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
@@ -95,17 +121,16 @@ public class PluginController implements RdfController {
         }
     }
 
-    @GetMapping(produces = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
-    @Operation(summary = "List all plugins as an RDF graph",
-            description = "Retrieves an RDF graph containing descriptions of all registered plugins (df:Plugin).",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "RDF graph containing all df:Plugin resources"),
-                    @ApiResponse(responseCode = "406", description = "Unsupported Accept header format", content = @Content)
-            })
+    @GetMapping(produces = { RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE,
+            RdfMediaType.APPLICATION_RDF_XML_VALUE })
+    @Operation(summary = "List all plugins as an RDF graph", description = "Retrieves an RDF graph containing descriptions of all registered plugins (df:Plugin).", responses = {
+            @ApiResponse(responseCode = "200", description = "RDF graph containing all df:Plugin resources"),
+            @ApiResponse(responseCode = "406", description = "Unsupported Accept header format", content = @Content)
+    })
     public ResponseEntity<String> listPlugins(
             @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
 
-        Model listModel = rdfStorageService.listResources(Vocab.Plugin);
+        Model listModel = rdfStorageService.listResourcesWithDistributions(Vocab.Plugin);
         return formatRdfResponse(listModel, acceptHeader);
     }
 }

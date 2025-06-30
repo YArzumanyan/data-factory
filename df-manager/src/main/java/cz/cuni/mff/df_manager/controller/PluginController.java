@@ -1,6 +1,5 @@
 package cz.cuni.mff.df_manager.controller;
 
-import cz.cuni.mff.df_manager.model.RdfResponse;
 import cz.cuni.mff.df_manager.service.ArtifactRepositoryService;
 import cz.cuni.mff.df_manager.service.MetadataStoreService;
 import cz.cuni.mff.df_manager.service.RdfService;
@@ -66,6 +65,68 @@ public class PluginController {
         }
     }
 
+    private ResponseEntity<String> updatePluginDist(String uuid, MultipartFile file) {
+        // Validate that plugin exists
+        if (!metadataStoreService.resourceExists("pl", uuid)) {
+            log.error("Plugin with UUID {} not found", uuid);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        // Upload the file to the artifact repository
+        String artifactId;
+        try {
+            artifactId = artifactRepositoryService.uploadArtifact(file);
+            log.info("Artifact uploaded with ID: {}", artifactId);
+        } catch (Exception e) {
+            log.error("Error uploading plugin file", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
+        // Update the plugin's distribution
+        String rdfData;
+        try {
+            rdfData = rdfService.updatePluginDistribution(uuid, artifactId);
+            log.info("Updated RDF for plugin: {}", rdfData);
+        } catch (Exception e) {
+            log.error("Error updating plugin distribution", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
+        // Submit updated RDF to metadata store
+        String response;
+        try {
+            response = metadataStoreService.submitRdf("pl", rdfData, uuid);
+            log.info("Plugin distribution updated successfully, response: {}", response);
+        } catch (Exception e) {
+            log.error("Error submitting updated RDF to metadata store", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Updates the distribution of an existing plugin with a new file.
+     *
+     * @param uuid The UUID of the plugin
+     * @param file The new plugin file
+     * @return RDF data for the updated plugin
+     */
+    @PostMapping(value = "/{uuid}/distribution", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = RdfMediaType.TEXT_TURTLE_VALUE)
+    public ResponseEntity<String> updatePluginDistribution(
+            @PathVariable String uuid,
+            @RequestParam("file") MultipartFile file) {
+
+        log.info("Updating distribution for plugin: {}, file: {}", uuid, file.getOriginalFilename());
+
+        try {
+            return updatePluginDist(uuid, file);
+        } catch (Exception e) {
+            log.error("Error updating plugin distribution", e);
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     /**
      * Retrieves metadata for a plugin.
      *
@@ -73,15 +134,33 @@ public class PluginController {
      * @return RDF data for the plugin
      */
     @GetMapping(value = "/{uuid}", produces = RdfMediaType.TEXT_TURTLE_VALUE)
-    public ResponseEntity<RdfResponse> getPlugin(@PathVariable String uuid) {
+    public ResponseEntity<String> getPlugin(@PathVariable String uuid) {
         log.info("Retrieving plugin: {}", uuid);
 
         try {
             String rdfData = metadataStoreService.getResourceRdf("pl", uuid);
-            return ResponseEntity.ok(new RdfResponse(rdfData));
+            return ResponseEntity.ok(rdfData);
         } catch (Exception e) {
             log.error("Error retrieving plugin", e);
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Lists all plugins as an RDF graph.
+     *
+     * @return RDF data containing all plugins
+     */
+    @GetMapping(produces = RdfMediaType.TEXT_TURTLE_VALUE)
+    public ResponseEntity<String> listPlugins() {
+        log.info("Listing all plugins");
+
+        try {
+            String rdfData = metadataStoreService.getResourceRdf("pl", null);
+            return ResponseEntity.ok(rdfData);
+        } catch (Exception e) {
+            log.error("Error listing plugins", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

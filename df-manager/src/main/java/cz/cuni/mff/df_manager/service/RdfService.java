@@ -10,16 +10,6 @@ import java.util.List;
 public interface RdfService {
 
     /**
-     * Generates RDF data for a dataset.
-     *
-     * @param title       The title of the dataset
-     * @param description The description of the dataset
-     * @param artifactId  The ID of the artifact in the artifact repository
-     * @return The generated RDF data in Turtle format
-     */
-    String generateDatasetRdf(String title, String description, String artifactId);
-
-    /**
      * Generates RDF data for a dataset with multiple artifacts.
      *
      * @param title       The title of the dataset
@@ -37,6 +27,15 @@ public interface RdfService {
      * @return The updated RDF data in Turtle format
      */
     String updateDatasetDistributions(String datasetUuid, List<String> artifactIds);
+
+    /**
+     * Updates the distribution of a plugin.
+     *
+     * @param pluginUuid The UUID of the plugin to update
+     * @param artifactId The ID of the new artifact in the artifact repository
+     * @return The updated RDF data in Turtle format
+     */
+    String updatePluginDistribution(String pluginUuid, String artifactId);
 
     /**
      * Generates RDF data for a plugin.

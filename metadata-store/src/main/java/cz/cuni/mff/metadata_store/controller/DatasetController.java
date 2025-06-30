@@ -136,7 +136,7 @@ public class DatasetController implements RdfController {
     public ResponseEntity<String> listDatasets(
             @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
 
-        Model listModel = rdfStorageService.listResources(Vocab.Dataset);
+        Model listModel = rdfStorageService.listResourcesWithDistributions(Vocab.Dataset);
         return formatRdfResponse(listModel, acceptHeader);
     }
 }

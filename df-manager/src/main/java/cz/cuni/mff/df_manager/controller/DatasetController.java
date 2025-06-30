@@ -1,6 +1,5 @@
 package cz.cuni.mff.df_manager.controller;
 
-import cz.cuni.mff.df_manager.model.RdfResponse;
 import cz.cuni.mff.df_manager.service.ArtifactRepositoryService;
 import cz.cuni.mff.df_manager.service.MetadataStoreService;
 import cz.cuni.mff.df_manager.service.RdfService;
@@ -75,15 +74,33 @@ public class DatasetController {
      * @return RDF data for the dataset
      */
     @GetMapping(value = "/{uuid}", produces = RdfMediaType.TEXT_TURTLE_VALUE)
-    public ResponseEntity<RdfResponse> getDataset(@PathVariable String uuid) {
+    public ResponseEntity<String> getDataset(@PathVariable String uuid) {
         log.info("Retrieving dataset: {}", uuid);
 
         try {
             String rdfData = metadataStoreService.getResourceRdf("ds", uuid);
-            return ResponseEntity.ok(new RdfResponse(rdfData));
+            return ResponseEntity.ok(rdfData);
         } catch (Exception e) {
             log.error("Error retrieving dataset", e);
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Lists all datasets as an RDF graph.
+     *
+     * @return RDF data containing descriptions of all datasets
+     */
+    @GetMapping(produces = RdfMediaType.TEXT_TURTLE_VALUE)
+    public ResponseEntity<String> listDatasets() {
+        log.info("Listing all datasets");
+
+        try {
+            String rdfData = metadataStoreService.getResourceRdf("ds", null);
+            return ResponseEntity.ok(rdfData);
+        } catch (Exception e) {
+            log.error("Error listing datasets", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -94,18 +111,36 @@ public class DatasetController {
             return ResponseEntity.notFound().build();
         }
 
-        // Upload the files to artifact repository
-        List<String> artifactIds = artifactRepositoryService.uploadArtifacts(files);
-        log.info("Artifacts uploaded with IDs: {}", artifactIds);
+        // Upload the files to the artifact repository
+        List<String> artifactIds;
+        try {
+            artifactIds = artifactRepositoryService.uploadArtifacts(files);
+            log.info("Artifacts uploaded with IDs: {}", artifactIds);
+        } catch (Exception e) {
+            log.error("Error uploading dataset files", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
 
         // Update the dataset's distributions
-        String rdfData = rdfService.updateDatasetDistributions(uuid, artifactIds);
-        log.info("Updated RDF for dataset: {}", rdfData);
+        String rdfData;
+        try {
+            rdfData = rdfService.updateDatasetDistributions(uuid, artifactIds);
+            log.info("Updated RDF for dataset: {}", rdfData);
+        } catch (Exception e) {
+            log.error("Error updating dataset distributions", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
 
         // Submit updated RDF to metadata store
-        String response = metadataStoreService.submitRdf("ds", rdfData, uuid);
+        String response;
+        try {
+            response = metadataStoreService.submitRdf("ds", rdfData, uuid);
+            log.info("Dataset distributions updated successfully, response: {}", response);
+        } catch (Exception e) {
+            log.error("Error submitting updated RDF to metadata store", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
 
-        log.info("Dataset distributions updated successfully, response: {}", response);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

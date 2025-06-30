@@ -20,7 +20,7 @@ public interface MetadataStoreService {
      * Retrieves RDF data for a resource from the metadata store.
      *
      * @param resourceType The type of resource (ds, pl, pipe)
-     * @param uuid         The UUID of the resource
+     * @param uuid         The UUID of the resource (nullable for listing all resources)
      * @return The RDF data in Turtle format
      */
     String getResourceRdf(String resourceType, String uuid);

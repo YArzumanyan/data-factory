@@ -58,18 +58,19 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
         return response.getBody();
     }
 
+    private String getEndpointForResourceType(String resourceType) {
+        return switch (resourceType) {
+            case "ds" -> datasetsEndpoint;
+            case "pl" -> pluginsEndpoint;
+            case "pipe" -> pipelinesEndpoint;
+            default -> resourcesEndpoint;
+        };
+    }
+
     @Override
     public String getResourceRdf(String resourceType, String uuid) {
-        String url = switch (resourceType) {
-            case "ds" -> datasetsEndpoint + "/" + uuid;
-            case "pl" -> pluginsEndpoint + "/" + uuid;
-            case "pipe" -> pipelinesEndpoint + "/" + uuid;
-            default ->
-                // Fall back to generic resources endpoint
-                resourcesEndpoint + "/" + uuid;
-        };
 
-        // Use specific endpoints for known resource types
+        String url = getEndpointForResourceType(resourceType);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(singletonList(RdfMediaType.TEXT_TURTLE));
@@ -77,7 +78,7 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
         HttpEntity<String> requestEntity = new HttpEntity<>(headers);
 
         ResponseEntity<String> response = restTemplate.exchange(
-                url,
+                uuid != null ? url + "/" + uuid : url,
                 HttpMethod.GET,
                 requestEntity,
                 String.class);
@@ -87,16 +88,7 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
 
     @Override
     public boolean resourceExists(String resourceType, String uuid) {
-        String url = switch (resourceType) {
-            case "ds" -> datasetsEndpoint + "/" + uuid;
-            case "pl" -> pluginsEndpoint + "/" + uuid;
-            case "pipe" -> pipelinesEndpoint + "/" + uuid;
-            default ->
-                // Fall back to generic resources endpoint
-                resourcesEndpoint + "/" + uuid;
-        };
-
-        // Use specific endpoints for known resource types
+        String url = getEndpointForResourceType(resourceType) + "/" + uuid;
 
         try {
             ResponseEntity<Void> response = restTemplate.exchange(
