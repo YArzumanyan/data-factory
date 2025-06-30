@@ -123,6 +123,21 @@ class MiddlewareClient:
         """
         endpoint = f"datasets/{uuid}/distribution"
         return self._post_files(file_paths, endpoint, "dataset's distribution", file_key="files", success_verb="set")
+    
+    def set_plugin_distribution(self, uuid: str, file_paths: List[Path]) -> Optional[str]:
+        """
+        Updates the distribution of an existing plugin with a file.
+        
+        Args:
+            uuid: The UUID of the plugin.
+            file_path: The file for the new distribution.
+            
+        Returns:
+            UUID of the updated plugin on success, None on failure
+        """
+        endpoint = f"plugins/{uuid}/distribution"
+        return self._post_files(file_paths, endpoint, "plugin's distribution", file_key="files", success_verb="set")
+            
 
     def post_plugin(self, file_path: Path, title: str, description: str) -> Optional[str]:
         """
@@ -203,7 +218,7 @@ def main(
     url: Optional[str] = typer.Option(
         None,
         "--url",
-        help="Base URL of the middleware API (overrides METADATA_STORE_URL env variable)"
+        help="Base URL of the middleware API (overrides DF_MANAGER_URL env variable)"
     ),
     verbose: bool = typer.Option(
         False,
@@ -219,13 +234,13 @@ def main(
     if url:
         middleware_url = url
     else:
-        middleware_url = os.getenv('METADATA_STORE_URL', 'http://localhost:8080')
+        middleware_url = os.getenv('DF_MANAGER_URL', 'http://localhost:8083')
     
     ctx.obj['url'] = middleware_url
     ctx.obj['verbose'] = verbose
     
     if verbose:
-        env_source = "command line" if url else ("environment variable" if os.getenv('METADATA_STORE_URL') else "default")
+        env_source = "command line" if url else ("environment variable" if os.getenv('DF_MANAGER_URL') else "default")
         console.print(f"[dim]Connecting to middleware at: {middleware_url} (from {env_source})[/dim]")
 
 @app.command()
@@ -246,11 +261,19 @@ def dataset(
 def set_distribution(
     ctx: typer.Context,
     uuid: str = typer.Argument(..., help="UUID of the dataset to update."),
+    type: str = typer.Option(..., "--type", "-t", help="Type of item to update (dataset or plugin)", default="dataset"),
     files: List[Path] = typer.Argument(..., help="Path to the new distribution file(s).")
 ):
-    """Set (overwrite) the distributions for a dataset."""
+    """Set (overwrite) the distributions for a dataset or plugin."""
     client = MiddlewareClient(ctx.obj['url'])
-    result_uuid = client.set_dataset_distribution(uuid, files)
+    
+    if type.lower() == 'plugin':
+        result_uuid = client.set_plugin_distribution(uuid, files)
+    elif type.lower() == 'dataset':
+        result_uuid = client.set_dataset_distribution(uuid, files)
+    else:
+        console.print(f"[red]✗ Invalid type '{type}'. Use 'dataset' or 'plugin'.[/red]")
+        raise typer.Exit(1)
 
     if result_uuid is None:
         raise typer.Exit(1)
