@@ -22,10 +22,9 @@ logging.basicConfig(level=logging.WARNING, format='%(message)s', handlers=[RichH
 console = Console()
 load_dotenv()
 
-DEFAULT_METADATA_STORE_URL = "http://localhost:8083/api/v1/pipelines"
-DEFAULT_ARTIFACT_REPO_URL = os.getenv("ARTIFACT_REPOSITORY_URL")
-MAIN_WORKSPACE = "./tmp/orchestrator_workspace"
-
+DF_MANAGER_URL = os.getenv("DF_MANAGER_URL", "http://localhost:8083")
+ARTIFACT_REPOSITORY_URL = os.getenv("ARTIFACT_REPOSITORY_URL", "http://localhost:8081")
+MAIN_WORKSPACE = os.getenv("MAIN_WORKSPACE", "./tmp/executor_workspace")
 
 # --- Helper Functions ---
 def get_uuid_from_iri(iri: str) -> str:
@@ -392,13 +391,13 @@ app = typer.Typer(
 @app.callback()
 def main(
     ctx: typer.Context,
-    url: Optional[str] = typer.Option(None, "--url", help=f"Base URL of the metadata store API (overrides env var or default: {DEFAULT_METADATA_STORE_URL})"),
+    url: Optional[str] = typer.Option(None, "--url", help=f"Base URL of the metadata store API (overrides env var or default: {DF_MANAGER_URL})"),
     artifact_url: Optional[str] = typer.Option(None, "--artifact-url", help="Base URL of the artifact repository (overrides ARTIFACT_REPOSITORY_URL env var)"),
 ):
     """Executor CLI - Build and run pipeline workflows."""
     ctx.ensure_object(dict)
-    ctx.obj['api_url'] = url or os.getenv('METADATA_STORE_URL', DEFAULT_METADATA_STORE_URL)
-    ctx.obj['artifact_url'] = artifact_url or DEFAULT_ARTIFACT_REPO_URL
+    ctx.obj['api_url'] = url or DF_MANAGER_URL
+    ctx.obj['artifact_url'] = artifact_url or ARTIFACT_REPOSITORY_URL
     
 @app.command()
 def visualize(
