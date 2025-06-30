@@ -5,6 +5,7 @@ import cz.cuni.mff.df_manager.model.pipeline.Step;
 import cz.cuni.mff.df_manager.model.pipeline.Variable;
 import cz.cuni.mff.df_manager.service.MetadataStoreService;
 import cz.cuni.mff.df_manager.service.RdfService;
+import cz.cuni.mff.df_manager.utils.Vocab;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.jena.rdf.model.*;
@@ -28,31 +29,6 @@ public class RdfServiceImpl implements RdfService {
     @Value("${artifact-repository.download-endpoint}")
     private String downloadEndpointTemplate;
 
-    @Value("${rdf.namespace.df}")
-    private String dfNamespace;
-
-    @Value("${rdf.namespace.pipe}")
-    private String pipeNamespace;
-
-    @Value("${rdf.namespace.step}")
-    private String stepNamespace;
-
-    @Value("${rdf.namespace.var}")
-    private String varNamespace;
-
-    @Value("${rdf.namespace.ds}")
-    private String dsNamespace;
-
-    @Value("${rdf.namespace.pl}")
-    private String plNamespace;
-
-    // RDF vocabulary namespaces
-    private static final String RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-    private static final String DCTERMS_NS = "http://purl.org/dc/terms/";
-    private static final String DCAT_NS = "http://www.w3.org/ns/dcat#";
-    private static final String PPLAN_NS = "http://purl.org/net/p-plan#";
-    private static final String PROV_NS = "http://www.w3.org/ns/prov#";
-
     /**
      * Adds a distribution to a resource in the RDF model.
      *
@@ -66,18 +42,18 @@ public class RdfServiceImpl implements RdfService {
 
         // Add a distribution type
         distribution.addProperty(
-                model.createProperty(RDF_TYPE),
-                model.createResource(DCAT_NS + "Distribution"));
+                model.createProperty(Vocab.RDF_NS + "type"),
+                model.createResource(Vocab.DCAT_NS + "Distribution"));
 
         // Add access URL
         String downloadUrl = downloadEndpointTemplate.replace("{artifactId}", artifactId);
         distribution.addProperty(
-                model.createProperty(DCAT_NS + "accessURL"),
+                model.createProperty(Vocab.DCAT_NS + "accessURL"),
                 model.createResource(downloadUrl));
 
         // Link distribution to resource
         resource.addProperty(
-                model.createProperty(DCAT_NS + "distribution"),
+                model.createProperty(Vocab.DCAT_NS + "distribution"),
                 distribution);
     }
 
@@ -96,13 +72,13 @@ public class RdfServiceImpl implements RdfService {
         // Add title and description
         if (title != null && !title.isEmpty()) {
             resource.addProperty(
-                    model.createProperty(DCTERMS_NS + "title"),
+                    model.createProperty(Vocab.DCTERMS_NS + "title"),
                     title);
         }
 
         if (description != null && !description.isEmpty()) {
             resource.addProperty(
-                    model.createProperty(DCTERMS_NS + "description"),
+                    model.createProperty(Vocab.DCTERMS_NS + "description"),
                     description);
         }
 
@@ -123,30 +99,30 @@ public class RdfServiceImpl implements RdfService {
         Model model = ModelFactory.createDefaultModel();
 
         // Set up namespaces
-        model.setNsPrefix("dcat", DCAT_NS);
-        model.setNsPrefix("dcterms", DCTERMS_NS);
-        model.setNsPrefix("ds", dsNamespace);
+        model.setNsPrefix("dcat", Vocab.DCAT_NS);
+        model.setNsPrefix("dcterms", Vocab.DCTERMS_NS);
+        model.setNsPrefix("ds", Vocab.DS_NS);
 
-        String datasetUri = dsNamespace + datasetId;
+        String datasetUri = Vocab.DS_NS + datasetId;
 
         // Create the dataset resource
         Resource dataset = model.createResource(datasetUri);
 
         // Add a dataset type
         dataset.addProperty(
-                model.createProperty(RDF_TYPE),
-                model.createResource(DCAT_NS + "Dataset"));
+                model.createProperty(Vocab.RDF_NS + "type"),
+                model.createResource(Vocab.DCAT_NS + "Dataset"));
 
         // Add title and description
         if (title != null && !title.isEmpty()) {
             dataset.addProperty(
-                    model.createProperty(DCTERMS_NS + "title"),
+                    model.createProperty(Vocab.DCTERMS_NS + "title"),
                     title);
         }
 
         if (description != null && !description.isEmpty()) {
             dataset.addProperty(
-                    model.createProperty(DCTERMS_NS + "description"),
+                    model.createProperty(Vocab.DCTERMS_NS + "description"),
                     description);
         }
 
@@ -167,20 +143,20 @@ public class RdfServiceImpl implements RdfService {
         Model model = ModelFactory.createDefaultModel();
 
         // Set up namespaces
-        model.setNsPrefix("dcat", DCAT_NS);
-        model.setNsPrefix("dcterms", DCTERMS_NS);
-        model.setNsPrefix("df", dfNamespace);
-        model.setNsPrefix("pl", plNamespace);
+        model.setNsPrefix("dcat", Vocab.DCAT_NS);
+        model.setNsPrefix("dcterms", Vocab.DCTERMS_NS);
+        model.setNsPrefix("df", Vocab.DF_NS);
+        model.setNsPrefix("pl", Vocab.PL_NS);
 
-        String pluginUri = plNamespace + artifactId;
+        String pluginUri = Vocab.PL_NS + artifactId;
 
         // Create the plugin resource
         Resource plugin = model.createResource(pluginUri);
 
         // Add plugin types
         plugin.addProperty(
-                model.createProperty(RDF_TYPE),
-                model.createResource(dfNamespace + "Plugin"));
+                model.createProperty(Vocab.RDF_NS + "type"),
+                model.createResource(Vocab.DF_NS + "Plugin"));
 
         // Add title and description
         addCommonResourceProperties(model, plugin, title, description, artifactId);
@@ -198,39 +174,39 @@ public class RdfServiceImpl implements RdfService {
 
         // Set up namespaces
         model.setNsPrefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#");
-        model.setNsPrefix("dcterms", DCTERMS_NS);
-        model.setNsPrefix("p-plan", PPLAN_NS);
-        model.setNsPrefix("dcat", DCAT_NS);
-        model.setNsPrefix("prov", PROV_NS);
-        model.setNsPrefix("df", dfNamespace);
-        model.setNsPrefix("pipe", pipeNamespace);
-        model.setNsPrefix("step", stepNamespace);
-        model.setNsPrefix("var", varNamespace);
-        model.setNsPrefix("ds", dsNamespace);
-        model.setNsPrefix("pl", plNamespace);
+        model.setNsPrefix("dcterms", Vocab.DCTERMS_NS);
+        model.setNsPrefix("p-plan", Vocab.PPLAN_NS);
+        model.setNsPrefix("dcat", Vocab.DCAT_NS);
+        model.setNsPrefix("prov", Vocab.PROV_NS);
+        model.setNsPrefix("df", Vocab.DF_NS);
+        model.setNsPrefix("pipe", Vocab.PIPE_NS);
+        model.setNsPrefix("step", Vocab.STEP_NS);
+        model.setNsPrefix("var", Vocab.VAR_NS);
+        model.setNsPrefix("ds", Vocab.DS_NS);
+        model.setNsPrefix("pl", Vocab.PL_NS);
 
         // Generate a UUID for the pipeline
         String pipelineUuid = UUID.randomUUID().toString();
-        String pipelineUri = pipeNamespace + pipelineUuid;
+        String pipelineUri = Vocab.PIPE_NS + pipelineUuid;
 
         // Create the pipeline resource
         Resource pipeline = model.createResource(pipelineUri);
 
         // Add a pipeline type
         pipeline.addProperty(
-                model.createProperty(RDF_TYPE),
-                model.createResource(PPLAN_NS + "Plan"));
+                model.createProperty(Vocab.RDF_NS + "type"),
+                model.createResource(Vocab.PPLAN_NS + "Plan"));
 
         // Add title and description
         if (pipelineConfig.getTitle() != null && !pipelineConfig.getTitle().isEmpty()) {
             pipeline.addProperty(
-                    model.createProperty(DCTERMS_NS + "title"),
+                    model.createProperty(Vocab.DCTERMS_NS + "title"),
                     pipelineConfig.getTitle());
         }
 
         if (pipelineConfig.getDescription() != null && !pipelineConfig.getDescription().isEmpty()) {
             pipeline.addProperty(
-                    model.createProperty(DCTERMS_NS + "description"),
+                    model.createProperty(Vocab.DCTERMS_NS + "description"),
                     pipelineConfig.getDescription());
         }
 
@@ -238,26 +214,26 @@ public class RdfServiceImpl implements RdfService {
         Map<String, String> variableIdMap = new HashMap<>();
         for (Variable variable : pipelineConfig.getVariables()) {
             String variableUuid = UUID.randomUUID().toString();
-            String variableUri = varNamespace + variableUuid;
+            String variableUri = Vocab.VAR_NS + variableUuid;
             variableIdMap.put(variable.getId(), variableUri);
 
             Resource variableResource = model.createResource(variableUri);
 
             // Add variable type
             variableResource.addProperty(
-                    model.createProperty(RDF_TYPE),
-                    model.createResource(PPLAN_NS + "Variable"));
+                    model.createProperty(Vocab.RDF_NS + "type"),
+                    model.createResource(Vocab.PPLAN_NS + "Variable"));
 
             // Add title
             if (variable.getTitle() != null && !variable.getTitle().isEmpty()) {
                 variableResource.addProperty(
-                        model.createProperty(DCTERMS_NS + "title"),
+                        model.createProperty(Vocab.DCTERMS_NS + "title"),
                         variable.getTitle());
             }
 
             // Link to pipeline
             variableResource.addProperty(
-                    model.createProperty(PPLAN_NS + "isVariableOfPlan"),
+                    model.createProperty(Vocab.PPLAN_NS + "isVariableOfPlan"),
                     pipeline);
 
             // Handle optional dataset link
@@ -268,9 +244,9 @@ public class RdfServiceImpl implements RdfService {
                             "Dataset with UUID " + variable.getDatasetUuid() + " does not exist");
                 }
 
-                String datasetUri = dsNamespace + variable.getDatasetUuid();
+                String datasetUri = Vocab.DS_NS + variable.getDatasetUuid();
                 variableResource.addProperty(
-                        model.createProperty(PROV_NS + "specializationOf"),
+                        model.createProperty(Vocab.PROV_NS + "specializationOf"),
                         model.createResource(datasetUri));
             }
         }
@@ -279,26 +255,26 @@ public class RdfServiceImpl implements RdfService {
         Map<String, String> stepIdMap = new HashMap<>();
         for (Step step : pipelineConfig.getSteps()) {
             String stepUuid = UUID.randomUUID().toString();
-            String stepUri = stepNamespace + stepUuid;
+            String stepUri = Vocab.STEP_NS + stepUuid;
             stepIdMap.put(step.getId(), stepUri);
 
             Resource stepResource = model.createResource(stepUri);
 
             // Add a step type
             stepResource.addProperty(
-                    model.createProperty(RDF_TYPE),
-                    model.createResource(PPLAN_NS + "Step"));
+                    model.createProperty(Vocab.RDF_NS + "type"),
+                    model.createResource(Vocab.PPLAN_NS + "Step"));
 
             // Add title
             if (step.getTitle() != null && !step.getTitle().isEmpty()) {
                 stepResource.addProperty(
-                        model.createProperty(DCTERMS_NS + "title"),
+                        model.createProperty(Vocab.DCTERMS_NS + "title"),
                         step.getTitle());
             }
 
             // Link to pipeline
             stepResource.addProperty(
-                    model.createProperty(PPLAN_NS + "isStepOfPlan"),
+                    model.createProperty(Vocab.PPLAN_NS + "isStepOfPlan"),
                     pipeline);
 
             // Link plugin and validate
@@ -308,9 +284,9 @@ public class RdfServiceImpl implements RdfService {
                     throw new IllegalArgumentException("Plugin with UUID " + step.getPluginUuid() + " does not exist");
                 }
 
-                String pluginUri = plNamespace + step.getPluginUuid();
+                String pluginUri = Vocab.PL_NS + step.getPluginUuid();
                 stepResource.addProperty(
-                        model.createProperty(dfNamespace + "usesPlugin"),
+                        model.createProperty(Vocab.DF_NS + "usesPlugin"),
                         model.createResource(pluginUri));
             }
 
@@ -320,7 +296,7 @@ public class RdfServiceImpl implements RdfService {
                     String variableUri = variableIdMap.get(inputId);
                     if (variableUri != null) {
                         stepResource.addProperty(
-                                model.createProperty(PPLAN_NS + "hasInputVar"),
+                                model.createProperty(Vocab.PPLAN_NS + "hasInputVar"),
                                 model.createResource(variableUri));
                     }
                 }
@@ -332,7 +308,7 @@ public class RdfServiceImpl implements RdfService {
                     String variableUri = variableIdMap.get(outputId);
                     if (variableUri != null) {
                         stepResource.addProperty(
-                                model.createProperty(PPLAN_NS + "isOutputVarOf"),
+                                model.createProperty(Vocab.PPLAN_NS + "isOutputVarOf"),
                                 model.createResource(variableUri));
                     }
                 }
@@ -349,7 +325,7 @@ public class RdfServiceImpl implements RdfService {
                     String precedingStepUri = stepIdMap.get(precedingStepId);
                     if (precedingStepUri != null) {
                         stepResource.addProperty(
-                                model.createProperty(PPLAN_NS + "isPrecededBy"),
+                                model.createProperty(Vocab.PPLAN_NS + "isPrecededBy"),
                                 model.createResource(precedingStepUri));
                     }
                 }
@@ -384,38 +360,38 @@ public class RdfServiceImpl implements RdfService {
 
                 // Get variable title
                 String variableTitle = "";
-                StmtIterator titleStmts = variableResource.listProperties(model.createProperty(DCTERMS_NS + "title"));
+                StmtIterator titleStmts = variableResource.listProperties(model.createProperty(Vocab.DCTERMS_NS + "title"));
                 if (titleStmts.hasNext()) {
                     variableTitle = titleStmts.nextStatement().getObject().toString();
                 }
 
                 // Generate output dataset
                 String outputDatasetUuid = UUID.randomUUID().toString();
-                String outputDatasetUri = dsNamespace + outputDatasetUuid;
+                String outputDatasetUri = Vocab.DS_NS + outputDatasetUuid;
                 Resource outputDataset = model.createResource(outputDatasetUri);
 
                 // add specializationOf property to variable
                 variableResource.addProperty(
-                        model.createProperty(PROV_NS + "specializationOf"),
+                        model.createProperty(Vocab.PROV_NS + "specializationOf"),
                         outputDataset);
 
                 // Add a dataset type
                 outputDataset.addProperty(
-                        model.createProperty(RDF_TYPE),
-                        model.createResource(DCAT_NS + "Dataset"));
+                        model.createProperty(Vocab.RDF_NS + "type"),
+                        model.createResource(Vocab.DCAT_NS + "Dataset"));
 
                 // Add title
                 outputDataset.addProperty(
-                        model.createProperty(DCTERMS_NS + "title"),
+                        model.createProperty(Vocab.DCTERMS_NS + "title"),
                         variableTitle);
 
                 // Link to variable and pipeline
                 outputDataset.addProperty(
-                        model.createProperty(PROV_NS + "wasDerivedFrom"),
+                        model.createProperty(Vocab.PROV_NS + "wasDerivedFrom"),
                         variableResource);
 
                 outputDataset.addProperty(
-                        model.createProperty(PROV_NS + "wasGeneratedBy"),
+                        model.createProperty(Vocab.PROV_NS + "wasGeneratedBy"),
                         pipeline);
             }
         }
@@ -445,7 +421,7 @@ public class RdfServiceImpl implements RdfService {
         model.read(new java.io.StringReader(existingRdf), null, "TURTLE");
 
         // Get the dataset resource
-        String datasetUri = dsNamespace + datasetUuid;
+        String datasetUri = Vocab.DS_NS + datasetUuid;
         Resource dataset = model.getResource(datasetUri);
 
         // This list will hold every statement we intend to remove.
@@ -453,7 +429,7 @@ public class RdfServiceImpl implements RdfService {
         // 2. Find all direct "dcat:distribution" statements and snapshot them into a
         // List.
         // This avoids modifying the model while we are iterating over its contents.
-        Property distributionProperty = model.createProperty(DCAT_NS, "distribution");
+        Property distributionProperty = model.createProperty(Vocab.DCAT_NS, "distribution");
         List<Statement> linkStatements = dataset.listProperties(distributionProperty).toList();
 
         // Add these linking statements to our master removal list.
@@ -503,11 +479,11 @@ public class RdfServiceImpl implements RdfService {
         model.read(new java.io.StringReader(existingRdf), null, "TURTLE");
 
         // Get the plugin resource
-        String pluginUri = plNamespace + pluginUuid;
+        String pluginUri = Vocab.PL_NS + pluginUuid;
         Resource plugin = model.getResource(pluginUri);
 
         // Remove existing distributions
-        Property distributionProperty = model.createProperty(DCAT_NS, "distribution");
+        Property distributionProperty = model.createProperty(Vocab.DCAT_NS, "distribution");
         model.remove(plugin.listProperties(distributionProperty));
 
         // Add new distribution

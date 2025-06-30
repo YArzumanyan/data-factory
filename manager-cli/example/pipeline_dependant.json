@@ -4,8 +4,8 @@
   "variables": [
     {
       "id": "article-var",
-      "title": "Article Raw Input",
-      "datasetUuid": "629e0906-9b1b-4cd8-b11c-dab62aff1bc5"
+      "title": "Reverse article Raw Input",
+      "datasetUuid": "d701c7f4-953c-41cb-b042-b244bf7d4b04"
     },
     {
       "id": "p2-final-var",
@@ -14,9 +14,9 @@
   ],
   "steps": [
     {
-      "id": "validate-step",
-      "title": "Validate Raw",
-      "pluginUuid": "63426768-0002-4ca8-925f-ff6ddcfa5a20",
+      "id": "reverse-step",
+      "title": "Reverse Data",
+      "pluginUuid": "f42a0d61-0f8f-4589-ad11-c15f7baf4e84",
       "inputs": [
         "article-var"
       ],

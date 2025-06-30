@@ -1,7 +1,6 @@
-package cz.cuni.mff.metadata_store.utils;
+package cz.cuni.mff.df_manager.utils;
 
 import org.apache.jena.rdf.model.Property;
-import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 
 /**
@@ -25,7 +24,9 @@ public final class Vocab {
 
     // --- Namespaces ---
     public static final String DCAT_NS = "http://www.w3.org/ns/dcat#";
+    public static final String DCTERMS_NS = "http://purl.org/dc/terms/";
     public static final String PPLAN_NS = "http://purl.org/net/p-plan#";
+    public static final String PROV_NS = "http://www.w3.org/ns/prov#";
     public static final String LDP_NS = "http://www.w3.org/ns/ldp#";
     public static final String RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
     public static final String RDF_NAMESPACE_BASE = ensureNamespace(namespaceUri);
@@ -36,18 +37,11 @@ public final class Vocab {
     public static final String STEP_NS = ensureNamespaceWithHash(RDF_NAMESPACE_BASE + stepNamespace);
     public static final String VAR_NS = ensureNamespaceWithHash(RDF_NAMESPACE_BASE + varNamespace);
 
-    // --- Classes ---
-    public static final Resource Dataset = ResourceFactory.createResource(DCAT_NS + "Dataset");
-    public static final Resource Plan = ResourceFactory.createResource(PPLAN_NS + "Plan");
-    public static final Resource Plugin = ResourceFactory.createResource(DF_NS + "Plugin");
-    public static final Resource RootContainer = ResourceFactory.createResource(DF_NS + "root");
-
     // --- Properties ---
-    public static final Property contains = ResourceFactory.createProperty(LDP_NS + "contains");
     public static final Property type = ResourceFactory.createProperty(RDF_NS + "type");
+    public static final Property title = ResourceFactory.createProperty(DCTERMS_NS + "title");
 
-    private Vocab() {
-    }
+    private Vocab() {}
 
     private static String ensureNamespace(String namespace) {
         return namespace.endsWith("/") ? namespace : namespace + "/";

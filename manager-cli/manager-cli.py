@@ -261,8 +261,8 @@ def dataset(
 def set_distribution(
     ctx: typer.Context,
     uuid: str = typer.Argument(..., help="UUID of the dataset to update."),
-    type: str = typer.Option(..., "--type", "-t", help="Type of item to update (dataset or plugin)", default="dataset"),
-    files: List[Path] = typer.Argument(..., help="Path to the new distribution file(s).")
+    files: List[Path] = typer.Argument(..., help="Path to the new distribution file(s)."),
+    type: str = typer.Option(..., "--type", "-t", help="Type of item to update (dataset or plugin)")
 ):
     """Set (overwrite) the distributions for a dataset or plugin."""
     client = MiddlewareClient(ctx.obj['url'])

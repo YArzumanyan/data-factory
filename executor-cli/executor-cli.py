@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.WARNING, format='%(message)s', handlers=[RichH
 console = Console()
 load_dotenv()
 
-DF_MANAGER_URL = os.getenv("DF_MANAGER_URL", "http://localhost:8083")
+PIPELINE_ENDPOINT = os.getenv("PIPELINE_ENDPOINT", "http://localhost:8083/api/v1/pipelines")
 ARTIFACT_REPOSITORY_URL = os.getenv("ARTIFACT_REPOSITORY_URL", "http://localhost:8081")
 MAIN_WORKSPACE = os.getenv("MAIN_WORKSPACE", "./tmp/executor_workspace")
 
@@ -63,8 +63,6 @@ def visualize_graph(graph: nx.DiGraph, title: str = "Combined Pipeline Workflow"
     handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, label=type_name)
                for type_name, color in color_map.items()]
     plt.legend(handles=handles, title="Node Types", loc='upper left', fontsize=10)
-    plt.savefig("combined_workflow.png")
-    console.print("[green]✓ Saved combined workflow graph to [bold]combined_workflow.png[/bold][/green]")
     plt.show()
 
 
@@ -175,6 +173,32 @@ class CombinedWorkflowBuilder:
                 self.processed_pipelines.add(current_uuid)
         
         console.print("[green]✓ Finished building execution graph.[/green]")
+
+        # Post-process the graph to merge equivalent variables. This simplifies the graph
+        dataset_to_vars = {}
+        for node_iri, data in self.combined_graph.nodes(data=True):
+            if data.get('type') == 'Dataset':
+                preds = self.combined_graph.predecessors(node_iri)
+                var_list = [p for p in preds if self.combined_graph.nodes[p].get('type') == 'Variable']
+                if len(var_list) > 1:
+                    dataset_to_vars[node_iri] = var_list
+
+        relabel_map = {}
+        for dataset_iri, var_list in dataset_to_vars.items():
+            canonical_var = next((v for v in var_list if any(self.combined_graph.nodes[p].get('type') == 'Step' 
+                                                             for p in self.combined_graph.predecessors(v))), var_list[0])
+            
+            for var in var_list:
+                if var != canonical_var:
+                    relabel_map[var] = canonical_var
+                    console.print(f"[dim]Merging variable [cyan]{get_uuid_from_iri(var)}[/cyan] into [cyan]{get_uuid_from_iri(canonical_var)}[/cyan][/dim]")
+
+        nx.relabel_nodes(self.combined_graph, relabel_map, copy=False)
+
+        datasets_to_remove = list(dataset_to_vars.keys())
+        self.combined_graph.remove_nodes_from(datasets_to_remove)
+        console.print(f"[dim]Removed {len(datasets_to_remove)} redundant dataset nodes from graph.[/dim]")
+        
         return self.combined_graph
 
 
@@ -184,7 +208,7 @@ class StepExecutor(ABC):
     @abstractmethod
     def setup_main_workspace(self, path: str): pass
     @abstractmethod
-    def prepare_step_workspace(self, base_path: str, step_label: str) -> tuple[str, str, str]: pass
+    def prepare_step_workspace(self, base_path: str, step_label: str, step_iri: str) -> tuple[str, str, str]: pass
     @abstractmethod
     def stage_input(self, source_path: str, target_dir: str): pass
     @abstractmethod
@@ -205,8 +229,10 @@ class LiveExecutor(StepExecutor):
     def setup_main_workspace(self, path: str):
         if os.path.exists(path): shutil.rmtree(path)
         os.makedirs(path)
-    def prepare_step_workspace(self, base_path: str, step_label: str) -> tuple[str, str, str]:
-        step_workspace = os.path.join(base_path, step_label.replace(' ', '_'))
+    def prepare_step_workspace(self, base_path: str, step_label: str, step_iri: str) -> tuple[str, str, str]:
+        step_uuid = get_uuid_from_iri(step_iri)
+        unique_dir_name = f"{step_label.replace(' ', '_')}_{step_uuid}"
+        step_workspace = os.path.join(base_path, unique_dir_name)
         inputs_dir = os.path.join(step_workspace, "inputs"); outputs_dir = os.path.join(step_workspace, "outputs"); plugin_dir = os.path.join(step_workspace, "plugin")
         os.makedirs(inputs_dir); os.makedirs(outputs_dir); os.makedirs(plugin_dir)
         return inputs_dir, outputs_dir, plugin_dir
@@ -271,8 +297,10 @@ class DryRunExecutor(StepExecutor):
     """A 'dry run' executor that only prints actions without side-effects."""
     def setup_main_workspace(self, path: str):
         console.print(f"[yellow][DRY RUN] Set up main workspace at: {path}[/yellow]")
-    def prepare_step_workspace(self, base_path: str, step_label: str) -> tuple[str, str, str]:
-        step_workspace = os.path.join(base_path, step_label.replace(' ', '_'))
+    def prepare_step_workspace(self, base_path: str, step_label: str, step_iri: str) -> tuple[str, str, str]:
+        step_uuid = get_uuid_from_iri(step_iri)
+        unique_dir_name = f"{step_label.replace(' ', '_')}_{step_uuid}"
+        step_workspace = os.path.join(base_path, unique_dir_name)
         console.print(f"[cyan][DRY RUN] Prepare workspace for step '{step_label}' at: {step_workspace}[/cyan]")
         return (os.path.join(step_workspace, "inputs"), os.path.join(step_workspace, "outputs"), os.path.join(step_workspace, "plugin"))
     def stage_input(self, source_path: str, target_dir: str):
@@ -313,12 +341,13 @@ class Orchestrator:
         step_label = self.graph.nodes[step_iri]['label']
         task = progress.add_task(f"Executing step: [bold]{step_label}[/bold]", total=None)
         
-        inputs_dir, outputs_dir, plugin_dir = self.executor.prepare_step_workspace(self.workspace, step_label)
+        inputs_dir, outputs_dir, plugin_dir = self.executor.prepare_step_workspace(self.workspace, step_label, step_iri)
         for pred_iri in self.graph.predecessors(step_iri):
             node_data = self.graph.nodes[pred_iri]
             if node_data['type'] == 'Variable':
                 result_dir_path = self.results_map.get(pred_iri)
-                if not result_dir_path: raise ValueError(f"Could not find result for input variable {pred_iri}")
+                if not result_dir_path:
+                    raise ValueError(f"Could not find result for input variable {pred_iri}")
                 dest_dir = os.path.join(inputs_dir, node_data['label'].replace(' ', '_'))
                 self.executor.stage_input(result_dir_path, dest_dir)
         
@@ -391,12 +420,12 @@ app = typer.Typer(
 @app.callback()
 def main(
     ctx: typer.Context,
-    url: Optional[str] = typer.Option(None, "--url", help=f"Base URL of the metadata store API (overrides env var or default: {DF_MANAGER_URL})"),
+    url: Optional[str] = typer.Option(None, "--url", help=f"Base URL of the metadata store pipeline endpoint (overrides env var or default: {PIPELINE_ENDPOINT})"),
     artifact_url: Optional[str] = typer.Option(None, "--artifact-url", help="Base URL of the artifact repository (overrides ARTIFACT_REPOSITORY_URL env var)"),
 ):
     """Executor CLI - Build and run pipeline workflows."""
     ctx.ensure_object(dict)
-    ctx.obj['api_url'] = url or DF_MANAGER_URL
+    ctx.obj['api_url'] = url or PIPELINE_ENDPOINT
     ctx.obj['artifact_url'] = artifact_url or ARTIFACT_REPOSITORY_URL
     
 @app.command()

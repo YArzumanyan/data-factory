@@ -5,7 +5,7 @@
     {
       "id": "article-var",
       "title": "Article Raw Input",
-      "datasetUuid": "629e0906-9b1b-4cd8-b11c-dab62aff1bc5"
+      "datasetUuid": "84fc5730-74fb-40d0-b3ab-fbe2c69e72ab"
     },
     {
       "id": "validated-data-var",
@@ -20,7 +20,7 @@
     {
       "id": "validate-step",
       "title": "Validate Raw",
-      "pluginUuid": "601112f5-1915-482c-94f2-4aaa96fa5403",
+      "pluginUuid": "a5fe38b9-d67f-4bd9-9013-ea23f54309aa",
       "inputs": [
         "article-var"
       ],
@@ -29,9 +29,9 @@
       ]
     },
     {
-      "id": "cleanse-step",
-      "title": "Cleanse Data",
-      "pluginUuid": "c130ea7b-d83d-4e2c-9dd7-1e5ffa015f7e",
+      "id": "reverse-step",
+      "title": "Reverse Data",
+      "pluginUuid": "f42a0d61-0f8f-4589-ad11-c15f7baf4e84",
       "inputs": [
         "validated-data-var"
       ],
