@@ -262,17 +262,17 @@ def set_distribution(
     ctx: typer.Context,
     uuid: str = typer.Argument(..., help="UUID of the dataset to update."),
     files: List[Path] = typer.Argument(..., help="Path to the new distribution file(s)."),
-    type: str = typer.Option(..., "--type", "-t", help="Type of item to update (dataset or plugin)")
+    dType: str = typer.Option("dataset", "--dtype", "-d", help="Type of item to update (dataset or plugin)")
 ):
     """Set (overwrite) the distributions for a dataset or plugin."""
     client = MiddlewareClient(ctx.obj['url'])
     
-    if type.lower() == 'plugin':
+    if dType.lower() == 'plugin':
         result_uuid = client.set_plugin_distribution(uuid, files)
-    elif type.lower() == 'dataset':
+    elif dType.lower() == 'dataset':
         result_uuid = client.set_dataset_distribution(uuid, files)
     else:
-        console.print(f"[red]✗ Invalid type '{type}'. Use 'dataset' or 'plugin'.[/red]")
+        console.print(f"[red]✗ Invalid type '{dType}'. Use 'dataset' or 'plugin'.[/red]")
         raise typer.Exit(1)
 
     if result_uuid is None:
@@ -302,6 +302,76 @@ def pipeline(
     uuid = client.post_pipeline(file)
     
     if uuid is None:
+        raise typer.Exit(1)
+
+
+@app.command()
+def list_pipelines(
+    ctx: typer.Context
+):
+    """List all pipelines in the middleware"""
+    client = MiddlewareClient(ctx.obj['url'])
+    
+    try:
+        response = client.session.get(f"{client.base_url}/api/v1/pipelines")
+        response.raise_for_status()
+        
+        console.print(response.text)
+    
+    except requests.RequestException as e:
+        console.print(f"[red]✗ Error fetching pipelines: {e}[/red]")
+        raise typer.Exit(1)
+
+@app.command()
+def list_datasets(
+    ctx: typer.Context
+):
+    """List all datasets in the middleware"""
+    client = MiddlewareClient(ctx.obj['url'])
+    
+    try:
+        response = client.session.get(f"{client.base_url}/api/v1/datasets")
+        response.raise_for_status()
+        
+        console.print(response.text)
+    
+    except requests.RequestException as e:
+        console.print(f"[red]✗ Error fetching datasets: {e}[/red]")
+        raise typer.Exit(1)
+
+@app.command()
+def list_plugins(
+    ctx: typer.Context
+):
+    """List all plugins in the middleware"""
+    client = MiddlewareClient(ctx.obj['url'])
+    
+    try:
+        response = client.session.get(f"{client.base_url}/api/v1/plugins")
+        response.raise_for_status()
+        
+        console.print(response.text)
+    
+    except requests.RequestException as e:
+        console.print(f"[red]✗ Error fetching plugins: {e}[/red]")
+        raise typer.Exit(1)
+    
+@app.command()
+def show_pipeline(
+    ctx: typer.Context,
+    uuid: str = typer.Argument(..., help="UUID of the pipeline to show")
+):
+    """Show details of a specific pipeline"""
+    client = MiddlewareClient(ctx.obj['url'])
+    
+    try:
+        response = client.session.get(f"{client.base_url}/api/v1/pipelines/{uuid}")
+        response.raise_for_status()
+        
+        console.print(response.text)
+    
+    except requests.RequestException as e:
+        console.print(f"[red]✗ Error fetching pipeline {uuid}: {e}[/red]")
         raise typer.Exit(1)
 
 if __name__ == '__main__':

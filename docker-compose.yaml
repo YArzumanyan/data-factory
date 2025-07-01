@@ -40,8 +40,14 @@ services:
     ports:
       - "8082:8080"
     environment:
-      - JENA_TDB2_LOCATION=${JENA_TDB2_LOCATION}
-      - METADATA_STORE_BASE_URI=${METADATA_STORE_BASE_URI}
+      JENA_TDB2_LOCATION: ${JENA_TDB2_LOCATION}
+      RDF_NAMESPACE_BASE: ${RDF_NAMESPACE_BASE:-http://localhost:8080/ns/}
+      RDF_NAMESPACE_DF: ${RDF_NAMESPACE_DF:-df}
+      RDF_NAMESPACE_PIPE: ${RDF_NAMESPACE_PIPE:-pipe}
+      RDF_NAMESPACE_STEP: ${RDF_NAMESPACE_STEP:-step}
+      RDF_NAMESPACE_VAR: ${RDF_NAMESPACE_VAR:-var}
+      RDF_NAMESPACE_DS: ${RDF_NAMESPACE_DS:-ds}
+      RDF_NAMESPACE_PL: ${RDF_NAMESPACE_PL:-pl}
     volumes:
       - metadata-store-data:/app/data
     restart: unless-stopped
@@ -56,12 +62,13 @@ services:
     environment:
       METADATA_STORE_BASE_URL: http://metadata-store:8080
       ARTIFACT_REPOSITORY_BASE_URL: http://artifact-repo:8080
-      # RDF_NAMESPACE_DF: ${RDF_NAMESPACE_DF:-http://localhost:8080/ns/df#}
-      # RDF_NAMESPACE_PIPE: ${RDF_NAMESPACE_PIPE:-urn:pipe:}
-      # RDF_NAMESPACE_STEP: ${RDF_NAMESPACE_STEP:-urn:step:}
-      # RDF_NAMESPACE_VAR: ${RDF_NAMESPACE_VAR:-urn:var:}
-      # RDF_NAMESPACE_DS: ${RDF_NAMESPACE_DS:-urn:ds:}
-      # RDF_NAMESPACE_PL: ${RDF_NAMESPACE_PL:-urn:pl:}
+      RDF_NAMESPACE_BASE: ${RDF_NAMESPACE_BASE:-http://localhost:8080/ns/}
+      RDF_NAMESPACE_DF: ${RDF_NAMESPACE_DF:-df}
+      RDF_NAMESPACE_PIPE: ${RDF_NAMESPACE_PIPE:-pipe}
+      RDF_NAMESPACE_STEP: ${RDF_NAMESPACE_STEP:-step}
+      RDF_NAMESPACE_VAR: ${RDF_NAMESPACE_VAR:-var}
+      RDF_NAMESPACE_DS: ${RDF_NAMESPACE_DS:-ds}
+      RDF_NAMESPACE_PL: ${RDF_NAMESPACE_PL:-pl}
     depends_on:
       - metadata-store
       - artifact-repo
