@@ -23,8 +23,8 @@ public class RootController {
         return "redirect:" + swaggerUiPath;
     }
 
-    @GetMapping("/alive")
-    public ResponseEntity<Boolean> alive() {
+    @GetMapping("/health")
+    public ResponseEntity<Boolean> health() {
         return ResponseEntity.ok(true);
     }
 }
