@@ -31,32 +31,6 @@ public class RdfStorageServiceImpl implements RdfStorageService {
         this.uriService = uriService;
     }
 
-//    @PostConstruct
-//    private void initialize() {
-//        ensureRootContainerExists();
-//    }
-//
-//    /**
-//     * Ensures the LDP root container resource (Vocab.RootContainer) exists in the dataset.
-//     */
-//    private void ensureRootContainerExists() {
-//        // Use the constant Resource from Vocab
-//        Resource root = Vocab.RootContainer;
-//        String rootUri = root.getURI(); // Get URI string for logging/comparison if needed
-//
-//        dataset.executeWrite(() -> {
-//            Model model = dataset.getDefaultModel();
-//            // Re-fetch resource within the transaction model context
-//            Resource rootInModel = model.createResource(rootUri);
-//            if (!model.contains(rootInModel, Vocab.type, Vocab.BasicContainer)) {
-//                log.info("Creating LDP root container: {}", rootUri);
-//                rootInModel.addProperty(Vocab.type, Vocab.BasicContainer);
-//                // Use a label specific to the df:root identifier
-//                rootInModel.addProperty(Vocab.title, model.createLiteral("Metadata Store Root (df:root)", "en"));
-//            }
-//        });
-//    }
-
     @Override
     public String storeRdfGraph(Model rdfModel, Resource expectedResourceType) {
         if (rdfModel == null || rdfModel.isEmpty()) {

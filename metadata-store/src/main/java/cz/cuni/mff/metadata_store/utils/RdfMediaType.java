@@ -13,7 +13,6 @@ public class RdfMediaType {
     public static final String APPLICATION_LD_JSON_VALUE = "application/ld+json";
     public static final String APPLICATION_RDF_XML_VALUE = "application/rdf+xml";
 
-
     private static final Map<String, Lang> MIME_TYPE_TO_LANG = Map.of(
         TEXT_TURTLE_VALUE, Lang.TURTLE,
         APPLICATION_LD_JSON_VALUE, Lang.JSONLD,
