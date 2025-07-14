@@ -13,43 +13,44 @@ The Metadata Store is built using the following technologies and architectural p
 
 ## Component Diagram
 
+```plantUML
+@startuml
+title Architecture
+
+package "Client Applications" {
+}
+
+package "REST API Layer" {
+  [Store Controller]
+  [Resource Controller]
+  [Dataset/Pipeline/Plugin Controllers]
+}
+
+package "Service Layer" {
+  [RdfStorageService]
+  [UriService]
+}
+
+package "Data Access Layer" {
+  [Apache Jena TDB2]
+}
+
+' Connections
+[Client Applications] --> [Store Controller]
+[Client Applications] --> [Resource Controller]
+[Client Applications] --> [Dataset/Pipeline/Plugin Controllers]
+
+[Store Controller] --> [RdfStorageService]
+[Resource Controller] --> [RdfStorageService]
+[Dataset/Pipeline/Plugin Controllers] --> [RdfStorageService]
+
+[RdfStorageService] --> [UriService]
+[UriService] --> [Apache Jena TDB2]
+@enduml
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Client Applications                    │
-└───────────────────────────────┬─────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────┐
-│                         REST API Layer                      │
-│                                                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │    Store    │  │  Resource   │  │ Dataset/Pipeline/   │  │
-│  │ Controller  │  │ Controller  │  │ Plugin Controllers  │  │
-│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘  │
-└─────────┼────────────────┼────────────────────┼─────────────┘
-          │                │                    │
-          ▼                ▼                    ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       Service Layer                         │
-│                                                             │
-│               ┌─────────────────────────────┐               │
-│               │      RdfStorageService      │               │
-│               └──────────────┬──────────────┘               │
-│                              │                              │
-│               ┌──────────────┴──────────────┐               │
-│               │         UriService          │               │
-│               └─────────────────────────────┘               │
-└─────────────────────────────┬───────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       Data Access Layer                     │
-│                                                             │
-│               ┌─────────────────────────────┐               │
-│               │      Apache Jena TDB2       │               │
-│               └─────────────────────────────┘               │
-└─────────────────────────────────────────────────────────────┘
-```
+
+<img src="architecture.svg">
+
 
 ## Key Components
 
@@ -62,6 +63,7 @@ The controllers handle HTTP requests and responses. They are responsible for:
 3. **Response Formatting**: Converting RDF models to the requested format.
 
 Key controller classes:
+
 - `RdfController`: Interface defining common RDF handling methods
 - `StoreController`: Operations on the entire RDF store
 - `ResourceController`: Generic resource operations
@@ -75,9 +77,9 @@ The services implement the business logic of the application. They are responsib
 
 1. **RDF Data Management**: Storing and retrieving RDF data.
 2. **Resource Identification**: Managing URIs for resources.
-3. **Data Validation**: Ensuring data integrity.
 
 Key service classes:
+
 - `RdfStorageService`: Interface defining RDF storage operations
 - `RdfStorageServiceImpl`: Implementation of the RDF storage service
 - `UriService`: Service for managing URIs
@@ -90,19 +92,9 @@ The configuration components set up the application and its dependencies. They a
 2. **Vocabulary Loading**: Loading initial RDF vocabulary data.
 
 Key configuration classes:
+
 - `JenaConfig`: Configures the Apache Jena TDB2 dataset
 - `VocabularyLoader`: Loads initial vocabulary data
-
-### Exception Handling
-
-The exception handling components provide consistent error responses. They are responsible for:
-
-1. **Error Translation**: Converting exceptions to HTTP responses.
-2. **Error Formatting**: Providing consistent error messages.
-
-Key exception handling classes:
-- `ResourceNotFoundException`: Exception for resources not found
-- `RestExceptionHandler`: Global exception handler
 
 ### Utilities
 
@@ -112,6 +104,7 @@ The utility components provide common functionality used throughout the applicat
 2. **Vocabulary Constants**: Providing RDF vocabulary constants.
 
 Key utility classes:
+
 - `RdfMediaType`: Constants and utilities for RDF media types
 - `Vocab`: Constants for RDF vocabulary terms
 

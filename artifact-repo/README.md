@@ -8,7 +8,6 @@ The Artifact Repository service allows you to:
 
 - Upload binary files and get a unique ID for later retrieval
 - Download artifacts by their ID
-- Get pre-signed URLs for temporary access to artifacts
 - Delete artifacts when they are no longer needed
 
 The service uses MinIO, a high-performance, S3-compatible object storage system, to store the binary artifacts.
@@ -131,13 +130,6 @@ The application can be configured using environment variables or by modifying th
 - `src/main/resources/application.properties`: Application configuration
 - `compose.yaml`: Docker Compose configuration
 - `Dockerfile`: Docker image definition
-
-## Logging
-
-The application uses SLF4J for logging with the following log levels:
-
-- `cz.cuni.mff.artifactrepo`: DEBUG
-- `io.minio`: INFO
 
 ## License
 

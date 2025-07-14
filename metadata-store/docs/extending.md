@@ -9,8 +9,7 @@ The Metadata Store is designed to be extensible. You can add new features by:
 1. Adding new resource types
 2. Adding new API endpoints
 3. Extending the RDF storage service
-4. Adding custom validation
-5. Implementing additional serialization formats
+4. Implementing additional serialization formats
 
 ## Adding a New Resource Type
 
@@ -138,18 +137,7 @@ public Model searchDatasetsByKeyword(String keyword) {
     Model resultModel = ModelFactory.createDefaultModel();
     
     // Execute a SPARQL query to find datasets with the keyword
-    String queryString = "PREFIX dcat: <http://www.w3.org/ns/dcat#>\n" +
-                         "PREFIX dcterms: <http://purl.org/dc/terms/>\n" +
-                         "CONSTRUCT { ?dataset ?p ?o }\n" +
-                         "WHERE {\n" +
-                         "  ?dataset a dcat:Dataset .\n" +
-                         "  ?dataset ?p ?o .\n" +
-                         "  { ?dataset dcterms:title ?title . FILTER(CONTAINS(LCASE(STR(?title)), LCASE('" + keyword + "'))) }\n" +
-                         "  UNION\n" +
-                         "  { ?dataset dcterms:description ?desc . FILTER(CONTAINS(LCASE(STR(?desc)), LCASE('" + keyword + "'))) }\n" +
-                         "  UNION\n" +
-                         "  { ?dataset dcat:keyword ?keyword . FILTER(CONTAINS(LCASE(STR(?keyword)), LCASE('" + keyword + "'))) }\n" +
-                         "}";
+    String queryString = "...";
     
     dataset.executeRead(() -> {
         try (QueryExecution qexec = QueryExecutionFactory.create(queryString, dataset)) {
@@ -218,76 +206,6 @@ public void executeSparqlUpdate(String updateString) {
             processor.execute();
         }
     });
-}
-```
-
-## Adding Custom Validation
-
-To add custom validation for RDF data:
-
-### 1. Create a Validator Class
-
-```java
-@Component
-public class RdfValidator {
-
-    /**
-     * Validates a dataset model against required properties.
-     *
-     * @param model The RDF model to validate
-     * @param datasetResource The dataset resource to validate
-     * @throws IllegalArgumentException if validation fails
-     */
-    public void validateDataset(Model model, Resource datasetResource) {
-        // Check required properties
-        if (!model.contains(datasetResource, DCTerms.title, (RDFNode) null)) {
-            throw new IllegalArgumentException("Dataset must have a dcterms:title property");
-        }
-        
-        if (!model.contains(datasetResource, DCTerms.description, (RDFNode) null)) {
-            throw new IllegalArgumentException("Dataset must have a dcterms:description property");
-        }
-        
-        // Check data types
-        StmtIterator titleStmts = model.listStatements(datasetResource, DCTerms.title, (RDFNode) null);
-        while (titleStmts.hasNext()) {
-            Statement stmt = titleStmts.next();
-            if (!stmt.getObject().isLiteral()) {
-                throw new IllegalArgumentException("Dataset title must be a literal value");
-            }
-        }
-        
-        // Additional validation rules...
-    }
-}
-```
-
-### 2. Use the Validator in the Service
-
-```java
-@Service
-public class RdfStorageServiceImpl implements RdfStorageService {
-
-    private final RdfValidator validator;
-    
-    @Autowired
-    public RdfStorageServiceImpl(Dataset dataset, UriService uriService, RdfValidator validator) {
-        this.dataset = dataset;
-        this.uriService = uriService;
-        this.validator = validator;
-    }
-    
-    @Override
-    public String storeRdfGraph(Model rdfModel, Resource expectedResourceType) {
-        // Existing code...
-        
-        // Add validation
-        if (expectedResourceType.equals(Vocab.Dataset)) {
-            validator.validateDataset(rdfModel, primaryResource);
-        }
-        
-        // Continue with storing the data...
-    }
 }
 ```
 
