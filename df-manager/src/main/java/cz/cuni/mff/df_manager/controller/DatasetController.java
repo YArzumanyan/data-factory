@@ -6,6 +6,7 @@ import cz.cuni.mff.df_manager.service.RdfService;
 import cz.cuni.mff.df_manager.utils.RdfMediaType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +38,7 @@ public class DatasetController {
         log.info("Generated RDF for multi-file dataset: {}", rdfData);
 
         // Submit RDF to metadata store
-        String response = metadataStoreService.submitRdf("ds", rdfData, null);
+        String response = metadataStoreService.submitRdf("ds", rdfData, null, HttpMethod.POST);
 
         log.info("Multi-file dataset RDF stored successfully, response: {}", response);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -134,7 +135,7 @@ public class DatasetController {
         // Submit updated RDF to metadata store
         String response;
         try {
-            response = metadataStoreService.submitRdf("ds", rdfData, uuid);
+            response = metadataStoreService.submitRdf("ds", rdfData, uuid, HttpMethod.PUT);
             log.info("Dataset distributions updated successfully, response: {}", response);
         } catch (Exception e) {
             log.error("Error submitting updated RDF to metadata store", e);

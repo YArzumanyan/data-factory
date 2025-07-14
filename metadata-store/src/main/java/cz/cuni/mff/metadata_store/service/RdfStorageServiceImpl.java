@@ -56,7 +56,7 @@ public class RdfStorageServiceImpl implements RdfStorageService {
             Model defaultModel = dataset.getDefaultModel();
             defaultModel.add(rdfModel);
 
-            if (expectedResourceType.equals(Vocab.Dataset) || expectedResourceType.equals(Vocab.Plugin)) {
+            if (expectedResourceType.equals(Vocab.Dataset) || expectedResourceType.equals(Vocab.Plugin) || expectedResourceType.equals(Vocab.Plan)) {
                 Resource rootInModel = defaultModel.getResource(Vocab.RootContainer.getURI());
                 Resource primaryResInModel = defaultModel.getResource(primaryResourceUri);
 

@@ -36,7 +36,7 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
     private String pluginsEndpoint;
 
     @Override
-    public String submitRdf(String resourceType, String rdfData, String uuid) {
+    public String submitRdf(String resourceType, String rdfData, String uuid, HttpMethod httpMethod) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(RdfMediaType.TEXT_TURTLE);
 
@@ -50,8 +50,9 @@ public class MetadataStoreServiceImpl implements MetadataStoreService {
             default -> throw new IllegalArgumentException("Unknown resource type: " + resourceType);
         } + uuidPath;
 
-        ResponseEntity<String> response = restTemplate.postForEntity(
+        ResponseEntity<String> response = restTemplate.exchange(
                 endpoint,
+                httpMethod,
                 requestEntity,
                 String.class);
 

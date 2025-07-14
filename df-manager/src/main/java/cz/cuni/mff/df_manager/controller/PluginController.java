@@ -6,6 +6,7 @@ import cz.cuni.mff.df_manager.service.RdfService;
 import cz.cuni.mff.df_manager.utils.RdfMediaType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -49,14 +50,14 @@ public class PluginController {
             log.info("Artifact uploaded with ID: {}", artifactId);
 
             // Determine file extension
-            String originalFilename = Objects.requireNonNull(file.getOriginalFilename());
-            String fileExtension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1);
+//            String originalFilename = Objects.requireNonNull(file.getOriginalFilename());
+//            String fileExtension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1);
 
             // Generate RDF for plugin
             String rdfData = rdfService.generatePluginRdf(title, description, artifactId);
 
             // Submit RDF to metadata store
-            String response = metadataStoreService.submitRdf("pl", rdfData, null);
+            String response = metadataStoreService.submitRdf("pl", rdfData, null, HttpMethod.POST);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
@@ -95,7 +96,7 @@ public class PluginController {
         // Submit updated RDF to metadata store
         String response;
         try {
-            response = metadataStoreService.submitRdf("pl", rdfData, uuid);
+            response = metadataStoreService.submitRdf("pl", rdfData, uuid, HttpMethod.PUT);
             log.info("Plugin distribution updated successfully, response: {}", response);
         } catch (Exception e) {
             log.error("Error submitting updated RDF to metadata store", e);

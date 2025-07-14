@@ -12,6 +12,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 
 /**
  * Interface for controllers that handle RDF data.
@@ -61,16 +65,38 @@ public interface RdfController {
      */
     default ResponseEntity<String> formatRdfResponse(Model model, String acceptHeader) {
         Lang requestedLang = RdfMediaType.getLangFromAcceptHeader(acceptHeader)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_ACCEPTABLE, 
-                        "Unsupported Accept header: " + acceptHeader + ". Supported types: " + 
-                        String.join(", ", getSupportedRdfMediaTypes())));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_ACCEPTABLE,
+                        "Unsupported Accept header: " + acceptHeader + ". Supported types: " +
+                                String.join(", ", getSupportedRdfMediaTypes())));
 
         StringWriter writer = new StringWriter();
         RDFDataMgr.write(writer, model, requestedLang);
+        String body = writer.toString();
 
         String contentType = RdfMediaType.getContentTypeFromLang(requestedLang)
                 .orElse(RdfMediaType.TEXT_TURTLE_VALUE); // Fallback
 
-        return ResponseEntity.ok().header(HttpHeaders.CONTENT_TYPE, contentType).body(writer.toString());
+        HttpHeaders headers = ldpHeaders();
+        headers.add(HttpHeaders.CONTENT_TYPE, contentType);
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            byte[] hash = digest.digest(body.getBytes(StandardCharsets.UTF_8));
+            String etag = "W/\"" + Base64.getEncoder().encodeToString(hash) + "\"";
+            headers.setETag(etag);
+        } catch (NoSuchAlgorithmException e) {
+            // This should not happen
+        }
+
+        return new ResponseEntity<>(body, headers, HttpStatus.OK);
+    }
+
+    /**
+     * Returns HttpHeaders with LDP advertisement.
+     */
+    default HttpHeaders ldpHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Link", "<http://www.w3.org/ns/ldp#Resource>; rel=\"type\"");
+        return headers;
     }
 }

@@ -1,6 +1,9 @@
 package cz.cuni.mff.metadata_store.controller;
 
 import cz.cuni.mff.metadata_store.service.RdfStorageService;
+
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.NoSuchElementException;
 import cz.cuni.mff.metadata_store.utils.RdfMediaType;
 import cz.cuni.mff.metadata_store.utils.Vocab;
@@ -56,8 +59,8 @@ public class PipelineController implements RdfController {
                     @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
             })
     public ResponseEntity<String> createPipeline(
-            InputStream requestBody,
-            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) {
+            @Parameter(description = "Input stream containing RDF data for the pipeline") InputStream requestBody,
+            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) throws URISyntaxException {
 
         log.debug("Attempting to parse request body with content type: {}", contentType);
         Model pipelineModel = parseRdfData(requestBody, contentType);
@@ -65,7 +68,9 @@ public class PipelineController implements RdfController {
         try {
             String resourceUri = rdfStorageService.storeRdfGraph(pipelineModel, Vocab.Plan);
             log.info("Pipeline stored successfully with URI: {}", resourceUri);
-            return ResponseEntity.status(HttpStatus.CREATED).body(resourceUri);
+            HttpHeaders headers = ldpHeaders();
+            headers.setLocation(new URI(resourceUri));
+            return new ResponseEntity<>(resourceUri, headers, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             // Handles cases where storeRdfGraph determines the input is invalid (e.g., no Plan)
             log.warn("Invalid pipeline graph provided: {}", e.getMessage());
@@ -109,5 +114,22 @@ public class PipelineController implements RdfController {
 
         Model pipelinesModel = rdfStorageService.listResources(Vocab.Plan);
         return formatRdfResponse(pipelinesModel, acceptHeader);
+    }
+
+    @RequestMapping(method = RequestMethod.HEAD, value = "/{planId}")
+    public ResponseEntity<Void> headPipeline(@PathVariable String planId) {
+        try {
+            rdfStorageService.getPipelineDescription(planId);
+            return ResponseEntity.ok().headers(ldpHeaders()).build();
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.notFound().headers(ldpHeaders()).build();
+        }
+    }
+
+    @RequestMapping(method = RequestMethod.OPTIONS)
+    public ResponseEntity<Void> options() {
+        HttpHeaders headers = ldpHeaders();
+        headers.add(HttpHeaders.ALLOW, "GET, HEAD, OPTIONS");
+        return ResponseEntity.ok().headers(headers).build();
     }
 }

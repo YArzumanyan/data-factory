@@ -1,5 +1,7 @@
 package cz.cuni.mff.df_manager.service;
 
+import org.springframework.http.HttpMethod;
+
 /**
  * Service for interacting with the metadata store.
  */
@@ -12,9 +14,10 @@ public interface MetadataStoreService {
      * @param rdfData      The RDF data in Turtle format
      * @param uuid         Optional UUID for the resource. If provided, it will be
      *                     used to update the existing resource.
+     * @param httpMethod  The HTTP method to use (e.g., "POST", "PUT").
      * @return The response from the metadata store
      */
-    String submitRdf(String resourceType, String rdfData, String uuid);
+    String submitRdf(String resourceType, String rdfData, String uuid, HttpMethod httpMethod);
 
     /**
      * Retrieves RDF data for a resource from the metadata store.

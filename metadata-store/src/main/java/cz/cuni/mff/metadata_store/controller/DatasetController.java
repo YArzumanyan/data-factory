@@ -51,7 +51,7 @@ public class DatasetController implements RdfController {
         this.rdfStorageService = rdfStorageService;
     }
 
-    @PostMapping(value = "/{datasetId}", consumes = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE, MediaType.TEXT_PLAIN_VALUE})
+    @PutMapping(value = "/{datasetId}", consumes = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE, MediaType.TEXT_PLAIN_VALUE})
     @Operation(summary = "Update an existing dataset RDF graph",
             description = "Updates an existing dataset (dcat:Dataset) with a new RDF graph. The provided graph must contain the complete updated state of the dataset.",
             parameters = @Parameter(name = "datasetId", description = "UUID of the dataset to update", required = true),
@@ -61,7 +61,7 @@ public class DatasetController implements RdfController {
                     @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
             })
     public ResponseEntity<String> updateDataset(
-            InputStream requestBody,
+            @Parameter(description = "Input stream containing RDF data for the dataset") InputStream requestBody,
             @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType, @PathVariable String datasetId) {
 
         log.debug("Attempting to update dataset with ID: {} and content type: {}", datasetId, contentType);
@@ -70,7 +70,7 @@ public class DatasetController implements RdfController {
         try {
             rdfStorageService.updateDataset(datasetId, datasetModel);
             log.info("Dataset updated successfully with ID: {}", datasetId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(datasetId);
+            return ResponseEntity.status(HttpStatus.OK).headers(ldpHeaders()).body(datasetId);
         } catch (NoSuchElementException e) {
             log.warn("Dataset not found for ID: {}", datasetId);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
@@ -89,8 +89,8 @@ public class DatasetController implements RdfController {
                     @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
             })
     public ResponseEntity<String> createDataset(
-            InputStream requestBody,
-            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) {
+            @Parameter(description = "Input stream containing RDF data for the dataset") InputStream requestBody,
+            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) throws URISyntaxException {
 
         log.debug("Attempting to parse request body with content type: {}", contentType);
         Model datasetModel = parseRdfData(requestBody, contentType);
@@ -98,7 +98,9 @@ public class DatasetController implements RdfController {
         try {
             String resourceUri = rdfStorageService.storeRdfGraph(datasetModel, Vocab.Dataset);
             log.info("Dataset stored successfully with URI: {}", resourceUri);
-            return ResponseEntity.status(HttpStatus.CREATED).body(resourceUri);
+            HttpHeaders headers = ldpHeaders();
+            headers.setLocation(new URI(resourceUri));
+            return new ResponseEntity<>(resourceUri, headers, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             log.warn("Invalid dataset graph provided: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
@@ -138,5 +140,22 @@ public class DatasetController implements RdfController {
 
         Model listModel = rdfStorageService.listResourcesWithDistributions(Vocab.Dataset);
         return formatRdfResponse(listModel, acceptHeader);
+    }
+
+    @RequestMapping(method = RequestMethod.HEAD, value = "/{datasetId}")
+    public ResponseEntity<Void> headDataset(@PathVariable String datasetId) {
+        try {
+            rdfStorageService.getDatasetDescription(datasetId);
+            return ResponseEntity.ok().headers(ldpHeaders()).build();
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.notFound().headers(ldpHeaders()).build();
+        }
+    }
+
+    @RequestMapping(method = RequestMethod.OPTIONS)
+    public ResponseEntity<Void> options() {
+        HttpHeaders headers = ldpHeaders();
+        headers.add(HttpHeaders.ALLOW, "GET, HEAD, OPTIONS, PUT");
+        return ResponseEntity.ok().headers(headers).build();
     }
 }

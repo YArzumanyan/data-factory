@@ -1,6 +1,9 @@
 package cz.cuni.mff.metadata_store.controller;
 
 import cz.cuni.mff.metadata_store.service.RdfStorageService;
+
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.NoSuchElementException;
 import cz.cuni.mff.metadata_store.utils.RdfMediaType;
 import cz.cuni.mff.metadata_store.utils.Vocab;
@@ -56,8 +59,8 @@ public class PluginController implements RdfController {
             @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
     })
     public ResponseEntity<String> createPlugin(
-            InputStream requestBody,
-            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) {
+            @Parameter(description = "Input stream containing RDF data for the plugin") InputStream requestBody,
+            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType) throws URISyntaxException {
 
         log.debug("Attempting to parse request body with content type: {}", contentType);
         Model pluginModel = parseRdfData(requestBody, contentType);
@@ -65,14 +68,16 @@ public class PluginController implements RdfController {
         try {
             String resourceUri = rdfStorageService.storeRdfGraph(pluginModel, Vocab.Plugin);
             log.info("Plugin stored successfully with URI: {}", resourceUri);
-            return ResponseEntity.status(HttpStatus.CREATED).body(resourceUri);
+            HttpHeaders headers = ldpHeaders();
+            headers.setLocation(new URI(resourceUri));
+            return new ResponseEntity<>(resourceUri, headers, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             log.warn("Invalid plugin graph provided: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         }
     }
 
-    @PostMapping(value = "/{pluginId}", consumes = { RdfMediaType.TEXT_TURTLE_VALUE,
+    @PutMapping(value = "/{pluginId}", consumes = { RdfMediaType.TEXT_TURTLE_VALUE,
             RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE,
             MediaType.TEXT_PLAIN_VALUE })
     @Operation(summary = "Update an existing plugin RDF graph", description = "Updates an existing plugin (df:Plugin) with a new RDF graph. The provided graph must contain the complete updated state of the plugin.", parameters = @Parameter(name = "pluginId", description = "UUID of the plugin to update", required = true), responses = {
@@ -81,7 +86,7 @@ public class PluginController implements RdfController {
             @ApiResponse(responseCode = "415", description = "Unsupported RDF Content-Type", content = @Content)
     })
     public ResponseEntity<String> updatePlugin(
-            InputStream requestBody,
+            @Parameter(description = "Input stream containing RDF data for the plugin") InputStream requestBody,
             @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType,
             @PathVariable String pluginId) {
 
@@ -91,7 +96,7 @@ public class PluginController implements RdfController {
         try {
             rdfStorageService.updatePlugin(pluginId, pluginModel);
             log.info("Plugin updated successfully with ID: {}", pluginId);
-            return ResponseEntity.status(HttpStatus.OK).body(pluginId);
+            return ResponseEntity.status(HttpStatus.OK).headers(ldpHeaders()).body(pluginId);
         } catch (NoSuchElementException e) {
             log.warn("Plugin not found for ID: {}", pluginId);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
@@ -132,5 +137,22 @@ public class PluginController implements RdfController {
 
         Model listModel = rdfStorageService.listResourcesWithDistributions(Vocab.Plugin);
         return formatRdfResponse(listModel, acceptHeader);
+    }
+
+    @RequestMapping(method = RequestMethod.HEAD, value = "/{pluginId}")
+    public ResponseEntity<Void> headPlugin(@PathVariable String pluginId) {
+        try {
+            rdfStorageService.getPluginDescription(pluginId);
+            return ResponseEntity.ok().headers(ldpHeaders()).build();
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.notFound().headers(ldpHeaders()).build();
+        }
+    }
+
+    @RequestMapping(method = RequestMethod.OPTIONS)
+    public ResponseEntity<Void> options() {
+        HttpHeaders headers = ldpHeaders();
+        headers.add(HttpHeaders.ALLOW, "GET, HEAD, OPTIONS, PUT");
+        return ResponseEntity.ok().headers(headers).build();
     }
 }
