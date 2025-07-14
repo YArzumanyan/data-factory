@@ -115,7 +115,7 @@ public class DatasetController implements RdfController {
             })
     public ResponseEntity<String> getDataset(
             @PathVariable String datasetId,
-            @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
+            @RequestHeader(value = HttpHeaders.ACCEPT, required = false, defaultValue = RdfMediaType.TEXT_TURTLE_VALUE) String acceptHeader) {
 
         try {
             Model datasetModel = rdfStorageService.getDatasetDescription(datasetId); // Throws NoSuchElementException
@@ -134,7 +134,7 @@ public class DatasetController implements RdfController {
                     @ApiResponse(responseCode = "406", description = "Unsupported Accept header format", content = @Content)
             })
     public ResponseEntity<String> listDatasets(
-            @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
+            @RequestHeader(value = HttpHeaders.ACCEPT, required = false, defaultValue = RdfMediaType.TEXT_TURTLE_VALUE) String acceptHeader) {
 
         Model listModel = rdfStorageService.listResourcesWithDistributions(Vocab.Dataset);
         return formatRdfResponse(listModel, acceptHeader);

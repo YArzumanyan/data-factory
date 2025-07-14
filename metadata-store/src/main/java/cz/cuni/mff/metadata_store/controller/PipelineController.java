@@ -84,7 +84,7 @@ public class PipelineController implements RdfController {
     public ResponseEntity<String> getPipeline(
             @PathVariable String planId,
             @RequestParam(required = false, defaultValue = "true") boolean full,
-            @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
+            @RequestHeader(value = HttpHeaders.ACCEPT, required = false, defaultValue = RdfMediaType.TEXT_TURTLE_VALUE) String acceptHeader) {
 
         try {
             Model pipelineModel = full
@@ -105,7 +105,7 @@ public class PipelineController implements RdfController {
                     @ApiResponse(responseCode = "406", description = "Unsupported Accept header format", content = @Content)
             })
     public ResponseEntity<String> listPipelines(
-            @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
+            @RequestHeader(value = HttpHeaders.ACCEPT, required = false, defaultValue = RdfMediaType.TEXT_TURTLE_VALUE) String acceptHeader) {
 
         Model pipelinesModel = rdfStorageService.listResources(Vocab.Plan);
         return formatRdfResponse(pipelinesModel, acceptHeader);

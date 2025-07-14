@@ -67,8 +67,8 @@ public class StoreController implements RdfController {
                 @Parameter(name = "inline", in = ParameterIn.QUERY, description = "Set to 'true' to display content inline instead of triggering a download.", schema = @Schema(type = "boolean", defaultValue = "false"))
         })
     public ResponseEntity<String> dumpStore(
-            @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader,
-            @RequestParam(value = "inline", required = false, defaultValue = "false") boolean inline // New parameter
+            @RequestHeader(value = HttpHeaders.ACCEPT, required = false, defaultValue = RdfMediaType.TEXT_TURTLE_VALUE) String acceptHeader,
+            @RequestParam(value = "inline", required = false, defaultValue = "false") boolean inline
     ) {
 
         Lang requestedLang = RdfMediaType.getLangFromAcceptHeader(acceptHeader)

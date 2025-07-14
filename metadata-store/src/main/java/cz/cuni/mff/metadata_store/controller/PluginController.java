@@ -110,7 +110,7 @@ public class PluginController implements RdfController {
     })
     public ResponseEntity<String> getPlugin(
             @PathVariable String pluginId,
-            @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
+            @RequestHeader(value = HttpHeaders.ACCEPT, required = false, defaultValue = RdfMediaType.TEXT_TURTLE_VALUE) String acceptHeader) {
 
         try {
             Model pluginModel = rdfStorageService.getPluginDescription(pluginId); // Throws NoSuchElementException
@@ -128,7 +128,7 @@ public class PluginController implements RdfController {
             @ApiResponse(responseCode = "406", description = "Unsupported Accept header format", content = @Content)
     })
     public ResponseEntity<String> listPlugins(
-            @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
+            @RequestHeader(value = HttpHeaders.ACCEPT, required = false, defaultValue = RdfMediaType.TEXT_TURTLE_VALUE) String acceptHeader) {
 
         Model listModel = rdfStorageService.listResourcesWithDistributions(Vocab.Plugin);
         return formatRdfResponse(listModel, acceptHeader);

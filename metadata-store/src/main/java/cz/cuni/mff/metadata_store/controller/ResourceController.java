@@ -55,7 +55,7 @@ public class ResourceController implements RdfController {
             })
     public ResponseEntity<String> getResource(
             @PathVariable String resourceId,
-            @RequestHeader(HttpHeaders.ACCEPT) String acceptHeader) {
+            @RequestHeader(value = HttpHeaders.ACCEPT, required = false, defaultValue = RdfMediaType.TEXT_TURTLE_VALUE) String acceptHeader) {
 
         Optional<Model> resourceModelOpt = rdfStorageService.getGenericResourceDescription(resourceId);
 
