@@ -261,7 +261,7 @@ class LiveExecutor(StepExecutor):
             raise
 
     def read_plugin_config(self, plugin_dir: str) -> dict:
-        with open(os.path.join(plugin_dir, "config.json")) as f:
+        with open(os.path.join(plugin_dir, "df_config.json")) as f:
             return json.load(f)
 
     def unpack_plugin(self, archive_path: str, target_dir: str):
@@ -311,7 +311,7 @@ class DryRunExecutor(StepExecutor):
         console.print(f"[cyan][DRY RUN] Fetch artifact from {access_url} to {path}[/cyan]")
         return path
     def read_plugin_config(self, plugin_dir: str) -> dict:
-        console.print(f"[cyan][DRY RUN] Read config.json from {plugin_dir}[/cyan]")
+        console.print(f"[cyan][DRY RUN] Read df_config.json from {plugin_dir}[/cyan]")
         return {"input_directory": "/dry_run/in", "output_directory": "/dry_run/out"}
     def unpack_plugin(self, archive_path: str, target_dir: str):
         console.print(f"[cyan][DRY RUN] Unpack plugin {archive_path} to {target_dir}[/cyan]")
