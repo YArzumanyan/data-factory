@@ -1,0 +1,98 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Pipeline Schema",
+    "description": "A schema to validate the structure of a pipeline definition.",
+    "type": "object",
+    "properties": {
+        "title": {
+            "description": "The main title of the pipeline.",
+            "type": "string"
+        },
+        "description": {
+            "description": "A brief description of what the pipeline does.",
+            "type": "string"
+        },
+        "variables": {
+            "description": "A list of data variables used or produced within the pipeline.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "description": "A unique identifier for the variable within the pipeline.",
+                        "type": "string"
+                    },
+                    "title": {
+                        "description": "A human-readable title for the variable.",
+                        "type": "string"
+                    },
+                    "datasetUuid": {
+                        "description": "The UUID of an existing dataset associated with this variable.",
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "id",
+                    "title"
+                ]
+            }
+        },
+        "steps": {
+            "description": "The sequence of steps or processes in the pipeline.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "description": "A unique identifier for the step within the pipeline.",
+                        "type": "string"
+                    },
+                    "title": {
+                        "description": "A human-readable title for the step.",
+                        "type": "string"
+                    },
+                    "pluginUuid": {
+                        "description": "The UUID of the plugin that executes this step.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "inputs": {
+                        "description": "A list of variable IDs that are inputs to this step.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "outputs": {
+                        "description": "A list of variable IDs that are outputs from this step.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "precededBy": {
+                        "description": "A list of step IDs that must be completed before this step can run.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "title",
+                    "pluginUuid",
+                    "inputs",
+                    "outputs"
+                ]
+            }
+        }
+    },
+    "required": [
+        "title",
+        "description",
+        "variables",
+        "steps"
+    ]
+}
