@@ -23,6 +23,11 @@ public class RootController {
         return "redirect:" + swaggerUiPath;
     }
 
+    /**
+     * Health check endpoint.
+     *
+     * @return ResponseEntity indicating the service is healthy.
+     */
     @GetMapping("/health")
     public ResponseEntity<Boolean> health() {
         return ResponseEntity.ok(true);

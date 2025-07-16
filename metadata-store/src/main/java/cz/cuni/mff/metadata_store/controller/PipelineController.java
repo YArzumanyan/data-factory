@@ -50,6 +50,13 @@ public class PipelineController implements RdfController {
         this.rdfStorageService = rdfStorageService;
     }
 
+    /**
+     * Creates a new pipeline definition by storing the provided RDF graph.
+     *
+     * @param requestBody InputStream containing RDF data
+     * @param contentType Content-Type of the request
+     * @return Parsed Jena Model containing the RDF data
+     */
     @PostMapping(consumes = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
     @Operation(summary = "Store a pipeline definition RDF graph",
             description = "Receives and persists a complete RDF graph for a pipeline plan (p-plan:Plan). Called by Middleware.",
@@ -78,6 +85,14 @@ public class PipelineController implements RdfController {
         }
     }
 
+    /**
+     * Retrieves a pipeline definition by its ID in the requested RDF format.
+     *
+     * @param planId UUID of the pipeline plan
+     * @param full If true, includes dependencies in the response
+     * @param acceptHeader Accept header specifying the desired RDF format
+     * @return ResponseEntity containing the RDF representation of the pipeline
+     */
     @GetMapping(value = "/{planId}", produces = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
     @Operation(summary = "Get pipeline definition RDF by ID",
             parameters = @Parameter(name = "planId", description = "UUID of the pipeline plan", required = true, example = "d290f1ee-6c54-4b01-90e6-d701748f0851"),
@@ -102,6 +117,12 @@ public class PipelineController implements RdfController {
         }
     }
 
+    /**
+     * Lists all pipeline definitions in the specified RDF format.
+     *
+     * @param acceptHeader Accept header specifying the desired RDF format
+     * @return ResponseEntity containing the RDF representation of all pipelines
+     */
     @GetMapping(produces = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
     @Operation(summary = "List all pipelines",
             description = "Retrieves a list of all pipeline definitions in the specified RDF format.",
@@ -116,6 +137,12 @@ public class PipelineController implements RdfController {
         return formatRdfResponse(pipelinesModel, acceptHeader);
     }
 
+    /**
+     * Checks if a pipeline plan exists by its ID.
+     *
+     * @param planId UUID of the pipeline plan
+     * @return ResponseEntity with status 200 if exists, 404 if not found
+     */
     @RequestMapping(method = RequestMethod.HEAD, value = "/{planId}")
     public ResponseEntity<Void> headPipeline(@PathVariable String planId) {
         try {
@@ -126,6 +153,11 @@ public class PipelineController implements RdfController {
         }
     }
 
+    /**
+     * Returns the allowed HTTP methods for this endpoint.
+     *
+     * @return ResponseEntity with allowed methods in headers
+     */
     @RequestMapping(method = RequestMethod.OPTIONS)
     public ResponseEntity<Void> options() {
         HttpHeaders headers = ldpHeaders();

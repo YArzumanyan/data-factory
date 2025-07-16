@@ -50,6 +50,13 @@ public class StoreController implements RdfController {
         this.rdfStorageService = rdfStorageService;
     }
 
+    /**
+     * Dumps the entire default graph of the RDF store in the requested format.
+     *
+     * @param acceptHeader the requested RDF media type (Accept header), defaults to Turtle if not specified
+     * @param inline       whether to display content inline or trigger a download
+     * @return a {@link ResponseEntity} containing the RDF dump in the requested format
+     */
     @GetMapping(value = "/dump", produces = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
     @Operation(summary = "Dump the entire default graph of the RDF store",
             description = "Retrieves all triples residing in the default graph of the RDF store in the requested format. " +
@@ -104,6 +111,11 @@ public class StoreController implements RdfController {
         }
     }
 
+    /**
+     * Returns the allowed HTTP methods for this endpoint.
+     *
+     * @return ResponseEntity with allowed methods in headers
+     */
     @RequestMapping(method = RequestMethod.OPTIONS)
     public ResponseEntity<Void> options() {
         HttpHeaders headers = ldpHeaders();

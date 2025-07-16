@@ -45,6 +45,16 @@ public class ResourceController implements RdfController {
         this.rdfStorageService = rdfStorageService;
     }
 
+    /**
+     * Retrieves the RDF description of a generic resource by its UUID.
+     *
+     * @param resourceId   the UUID of the resource to retrieve
+     * @param acceptHeader the requested RDF media type (Accept header), defaults to Turtle if not specified
+     * @return a {@link ResponseEntity} containing the RDF description of the resource in the requested format,
+     *         or a 404 Not Found if the resource does not exist,
+     *         or a 406 Not Acceptable if the requested media type is not supported
+     * @throws ResponseStatusException if the resource is not found
+     */
     @GetMapping(value = "/{resourceId}", produces = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
     @Operation(summary = "Get any resource RDF by its UUID",
             parameters = @Parameter(name = "resourceId", description = "UUID of the resource to retrieve", required = true),

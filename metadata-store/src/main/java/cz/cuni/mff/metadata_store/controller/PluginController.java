@@ -51,6 +51,13 @@ public class PluginController implements RdfController {
         this.rdfStorageService = rdfStorageService;
     }
 
+    /**
+     * Creates a new plugin (df:Plugin) by storing the provided RDF graph.
+     *
+     * @param requestBody InputStream containing RDF data
+     * @param contentType Content-Type of the request
+     * @return Parsed Jena Model containing the RDF data
+     */
     @PostMapping(consumes = { RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE,
             RdfMediaType.APPLICATION_RDF_XML_VALUE })
     @Operation(summary = "Store a plugin RDF graph", description = "Receives and persists a pre-validated RDF graph for a plugin (df:Plugin). Called by Middleware.", responses = {
@@ -77,6 +84,14 @@ public class PluginController implements RdfController {
         }
     }
 
+    /**
+     * Updates an existing plugin (df:Plugin) with a new RDF graph.
+     *
+     * @param requestBody InputStream containing RDF data
+     * @param contentType Content-Type of the request
+     * @param pluginId UUID of the plugin to update
+     * @return ResponseEntity with status and headers
+     */
     @PutMapping(value = "/{pluginId}", consumes = { RdfMediaType.TEXT_TURTLE_VALUE,
             RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE,
             MediaType.TEXT_PLAIN_VALUE })
@@ -106,6 +121,13 @@ public class PluginController implements RdfController {
         }
     }
 
+    /**
+     * Retrieves a plugin (df:Plugin) definition by its ID in the requested RDF format.
+     *
+     * @param pluginId UUID of the plugin
+     * @param acceptHeader Accept header specifying the desired RDF format
+     * @return ResponseEntity containing the RDF representation of the plugin
+     */
     @GetMapping(value = "/{pluginId}", produces = { RdfMediaType.TEXT_TURTLE_VALUE,
             RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE })
     @Operation(summary = "Get plugin definition RDF by ID", parameters = @Parameter(name = "pluginId", description = "UUID of the plugin", required = true), responses = {
@@ -126,6 +148,12 @@ public class PluginController implements RdfController {
         }
     }
 
+    /**
+     * Lists all registered plugins (df:Plugin) in the requested RDF format.
+     *
+     * @param acceptHeader Accept header specifying the desired RDF format
+     * @return ResponseEntity containing the RDF representation of all plugins
+     */
     @GetMapping(produces = { RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE,
             RdfMediaType.APPLICATION_RDF_XML_VALUE })
     @Operation(summary = "List all plugins as an RDF graph", description = "Retrieves an RDF graph containing descriptions of all registered plugins (df:Plugin).", responses = {
@@ -139,6 +167,12 @@ public class PluginController implements RdfController {
         return formatRdfResponse(listModel, acceptHeader);
     }
 
+    /**
+     * Checks if a plugin exists by its ID.
+     *
+     * @param pluginId UUID of the plugin
+     * @return ResponseEntity with status 200 if exists, 404 if not found
+     */
     @RequestMapping(method = RequestMethod.HEAD, value = "/{pluginId}")
     public ResponseEntity<Void> headPlugin(@PathVariable String pluginId) {
         try {
@@ -149,6 +183,11 @@ public class PluginController implements RdfController {
         }
     }
 
+    /**
+     * Returns the allowed HTTP methods for this endpoint.
+     *
+     * @return ResponseEntity with allowed methods in headers
+     */
     @RequestMapping(method = RequestMethod.OPTIONS)
     public ResponseEntity<Void> options() {
         HttpHeaders headers = ldpHeaders();

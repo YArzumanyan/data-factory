@@ -82,24 +82,6 @@ public class ObjectStorageController {
         }
     }
 
-    @GetMapping("/{objectId}/url")
-    public ResponseEntity<String> getDownloadUrl(@PathVariable String objectId) {
-        try {
-            StatObjectResponse metadata = objectStorageService.getObjectMetadata(objectId);
-            if (metadata == null) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Object not found");
-            }
-
-            String url = objectStorageService.getPresignedUrlForGet(objectId, 3600);
-            return ResponseEntity.ok(url);
-        } catch (MinioException | IOException | InvalidKeyException | NoSuchAlgorithmException e) {
-            if (e.getMessage() != null && e.getMessage().contains("NoSuchKey")) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Object not found", e);
-            }
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error generating URL: " + e.getMessage(), e);
-        }
-    }
-
     @GetMapping("dump")
     public ResponseEntity<String> dumpObjectStorage() {
         try {

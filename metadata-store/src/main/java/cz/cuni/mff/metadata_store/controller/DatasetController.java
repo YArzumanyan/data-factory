@@ -51,6 +51,14 @@ public class DatasetController implements RdfController {
         this.rdfStorageService = rdfStorageService;
     }
 
+    /**
+     * Updates an existing dataset (dcat:Dataset) with a new RDF graph.
+     *
+     * @param requestBody InputStream containing RDF data for the dataset
+     * @param contentType Content-Type of the request
+     * @param datasetId UUID of the dataset to update
+     * @return ResponseEntity with status 200 if successful, 404 if dataset not found, or 415 if unsupported content type
+     */
     @PutMapping(value = "/{datasetId}", consumes = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE, MediaType.TEXT_PLAIN_VALUE})
     @Operation(summary = "Update an existing dataset RDF graph",
             description = "Updates an existing dataset (dcat:Dataset) with a new RDF graph. The provided graph must contain the complete updated state of the dataset.",
@@ -80,6 +88,13 @@ public class DatasetController implements RdfController {
         }
     }
 
+    /**
+     * Creates a new dataset (dcat:Dataset) by storing the provided RDF graph.
+     *
+     * @param requestBody InputStream containing RDF data for the dataset
+     * @param contentType Content-Type of the request
+     * @return ResponseEntity with status 201 if successful, 400 if malformed RDF, or 415 if unsupported content type
+     */
     @PostMapping(consumes = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE, MediaType.TEXT_PLAIN_VALUE})
     @Operation(summary = "Store a dataset RDF graph",
             description = "Receives and persists a pre-validated RDF graph for a dataset (dcat:Dataset). Called by Middleware.",
@@ -107,6 +122,13 @@ public class DatasetController implements RdfController {
         }
     }
 
+    /**
+     * Retrieves a dataset (dcat:Dataset) by its ID in the requested RDF format.
+     *
+     * @param datasetId UUID of the dataset to retrieve
+     * @param acceptHeader Accept header specifying the desired RDF format
+     * @return ResponseEntity with the dataset RDF in the requested format, or 404 if not found, or 406 if unsupported format
+     */
     @GetMapping(value = "/{datasetId}", produces = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
     @Operation(summary = "Get dataset definition RDF by ID",
             parameters = @Parameter(name = "datasetId", description = "UUID of the dataset", required = true),
@@ -128,6 +150,12 @@ public class DatasetController implements RdfController {
         }
     }
 
+    /**
+     * Lists all datasets (dcat:Dataset) as an RDF graph.
+     *
+     * @param acceptHeader Accept header specifying the desired RDF format
+     * @return ResponseEntity with the RDF graph of all datasets, or 406 if unsupported format
+     */
     @GetMapping(produces = {RdfMediaType.TEXT_TURTLE_VALUE, RdfMediaType.APPLICATION_LD_JSON_VALUE, RdfMediaType.APPLICATION_RDF_XML_VALUE})
     @Operation(summary = "List all datasets as an RDF graph",
             description = "Retrieves an RDF graph containing descriptions of all registered datasets (dcat:Dataset).",
@@ -142,6 +170,12 @@ public class DatasetController implements RdfController {
         return formatRdfResponse(listModel, acceptHeader);
     }
 
+    /**
+     * Checks if a dataset exists by its ID.
+     *
+     * @param datasetId UUID of the dataset to check
+     * @return ResponseEntity with status 200 if exists, 404 if not found
+     */
     @RequestMapping(method = RequestMethod.HEAD, value = "/{datasetId}")
     public ResponseEntity<Void> headDataset(@PathVariable String datasetId) {
         try {
@@ -152,6 +186,11 @@ public class DatasetController implements RdfController {
         }
     }
 
+    /**
+     * Returns the allowed HTTP methods for this endpoint.
+     *
+     * @return ResponseEntity with allowed methods in headers
+     */
     @RequestMapping(method = RequestMethod.OPTIONS)
     public ResponseEntity<Void> options() {
         HttpHeaders headers = ldpHeaders();

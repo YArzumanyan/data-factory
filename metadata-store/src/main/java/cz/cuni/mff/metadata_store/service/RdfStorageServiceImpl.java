@@ -265,7 +265,6 @@ public class RdfStorageServiceImpl implements RdfStorageService {
         return describeResourceOrThrow(resourceUri);
     }
 
-    // Helper for typed get methods
     private Model describeResourceOrThrow(String resourceUri) throws NoSuchElementException {
         final Model resourceModel = ModelFactory.createDefaultModel();
         dataset.executeRead(() -> {
@@ -282,15 +281,6 @@ public class RdfStorageServiceImpl implements RdfStorageService {
         return resourceModel;
     }
 
-
-    /**
-     * Helper method to get the description of a resource using SPARQL CONSTRUCT.
-     * Retrieves triples where the resource is the subject.
-     * Includes outbound links but limited depth for blank nodes by default CONSTRUCT behavior.
-     *
-     * @param resourceUri The full URI of the resource.
-     * @return A Model containing the resource description, empty if not found.
-     */
     private Model describeResource(String resourceUri) {
         String queryString = """
                 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -329,6 +319,12 @@ public class RdfStorageServiceImpl implements RdfStorageService {
         return sparqlConstruct(queryString);
     }
 
+    /**
+     * Lists all resources of a specific type, including their distributions.
+     *
+     * @param resourceType The RDF class (Resource) of the resources to list (e.g., Vocab.Dataset).
+     * @return A Jena Model containing the descriptions of all matching resources with their distributions.
+     */
     public Model listResourcesWithDistributions(Resource resourceType) {
         String queryString = """
                 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
