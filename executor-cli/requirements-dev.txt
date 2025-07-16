@@ -8,3 +8,6 @@ typer
 dotenv
 python-magic
 rich
+
+pytest
+pytest-mock

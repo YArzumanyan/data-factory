@@ -26,6 +26,7 @@ public final class Vocab {
     // --- Namespaces ---
     public static final String DCAT_NS = "http://www.w3.org/ns/dcat#";
     public static final String PPLAN_NS = "http://purl.org/net/p-plan#";
+    public static final String DCTERMS_NS = "http://purl.org/dc/terms/";
     public static final String LDP_NS = "http://www.w3.org/ns/ldp#";
     public static final String RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
     public static final String RDF_NAMESPACE_BASE = ensureNamespace(namespaceUri);
