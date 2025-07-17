@@ -5,7 +5,7 @@
     {
       "id": "article-var",
       "title": "Article Raw Input",
-      "datasetUuid": "84fc5730-74fb-40d0-b3ab-fbe2c69e72ab"
+      "datasetUuid": "DATASET_UUID"
     },
     {
       "id": "validated-data-var",
@@ -20,7 +20,7 @@
     {
       "id": "validate-step",
       "title": "Validate Raw",
-      "pluginUuid": "a5fe38b9-d67f-4bd9-9013-ea23f54309aa",
+      "pluginUuid": "PLUGIN_UUID",
       "inputs": [
         "article-var"
       ],
@@ -31,7 +31,7 @@
     {
       "id": "reverse-step",
       "title": "Reverse Data",
-      "pluginUuid": "f42a0d61-0f8f-4589-ad11-c15f7baf4e84",
+      "pluginUuid": "PLUGIN_UUID",
       "inputs": [
         "validated-data-var"
       ],
