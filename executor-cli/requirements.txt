@@ -8,3 +8,4 @@ typer
 dotenv
 python-magic
 rich
+PyQt6

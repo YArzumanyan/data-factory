@@ -8,6 +8,7 @@ typer
 dotenv
 python-magic
 rich
+PyQt6
 
 pytest
 pytest-mock
