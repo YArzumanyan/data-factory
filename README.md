@@ -141,7 +141,7 @@ You are now ready to run your pipeline.
 
 #### 5. View the Results
 
-Once the execution is complete, you can find the output in the results directory, which is defined in your `executor-cli/.env` file (look for the `MAIN_WORKSPACE`/results path).
+Once the execution is complete, you can find the output in the results directory, which is defined in your `executor-cli/.env` file (look for the `MAIN_WORKSPACE`/results path). If the `MAIN_WORKSPACE` variable is not setup, then it will use `./tmp/executor_workspace` directory by default.
 
 ### Plugin Development
 
