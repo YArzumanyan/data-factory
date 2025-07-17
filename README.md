@@ -143,6 +143,51 @@ You are now ready to run your pipeline.
 
 Once the execution is complete, you can find the output in the results directory, which is defined in your `executor-cli/.env` file (look for the `MAIN_WORKSPACE`/results path).
 
+### Plugin Development
+
+This guide explains how to create, package, and upload custom plugins.
+
+#### Plugin Requirements
+
+A plugin must be a compressed archive (`.zip`) containing:
+
+1.  **Source Code**: The code that performs the data transformation.
+2.  **`Dockerfile`**: Defines how to build a container image for your plugin.
+3.  **`df_config.json`**: A configuration file that tells the `executor-cli` where the input and output directories are mapped inside the container.
+    ```json
+    {
+      "input_directory": "/app/in",
+      "output_directory": "/app/out"
+    }
+    ```
+4.  **Exit Codes**: The plugin must use standard OS exit codes for status reporting. An exit code of `0` signals success, while any non-zero exit code indicates a failure and halts the pipeline.
+
+#### Step-by-Step Guide
+
+1.  **Create Plugin Logic**: Write your application to read data from an input folder and write results to an output folder.
+2.  **Write the `Dockerfile`**: Create a `Dockerfile` that sets up the environment and defines the command to run your script.
+3.  **Package the Plugin**: Create a compressed archive containing your source code, `Dockerfile`, and `df_config.json`.
+4.  **Upload the Plugin**: Use the `manager-cli` to upload your plugin.
+    ```bash
+    python manager-cli/manager-cli.py plugin path/to/your/plugin.zip --title "My Plugin" --description "A custom plugin."
+    ```
+5.  **Test Locally**: Before uploading, build and run your Docker container locally to verify its behavior.
+    ```bash
+    # Build the image
+    docker build -t my-plugin-test .
+
+    # Run the container with mounted volumes
+    mkdir -p local_test/input local_test/output
+    # Add a test file to local_test/input
+    docker run --rm \
+      -v $(pwd)/local_test/input:/app/in \
+      -v $(pwd)/local_test/output:/app/out \
+      my-plugin-test
+    ```
+    Check the `local_test/output` directory to verify the results.
+
+Example plugins are provided in the `manager-cli/example` directory.
+
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
