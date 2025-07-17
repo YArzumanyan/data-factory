@@ -92,7 +92,7 @@ Once the backend is deployed, you can use the CLI tools to manage and run your p
 First, upload a dataset to work with. This command registers your dataset and returns a unique ID (`DATASET_UUID`).
 
 ```bash
-python manager-cli/manager-cli.py dataset manager-cli/example/MOCK_DATA_1.csv --title "Article" --description "A one-liner article"
+python manager-cli/manager-cli.py dataset manager-cli/example/article.txt --title "Article" --description "A one-liner article"
 ```
 
 **Note:** Keep track of the `DATASET_UUID` returned by this command.
