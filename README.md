@@ -20,11 +20,11 @@ Each subproject contains its own README or documentation with more detailed inst
 
 This section covers the deployment of the core backend services using Docker.
 
-#### **Prerequisites**
+#### Prerequisites
 
   * **Docker** and **Docker Compose**
 
-#### **Deployment Guide**
+#### Deployment Guide
 
 1.  **Clone the Repository**
     First, obtain the project source code from its GitHub repository.
@@ -97,7 +97,7 @@ python manager-cli/manager-cli.py dataset manager-cli/example/MOCK_DATA_1.csv --
 
 **Note:** Keep track of the `DATASET_UUID` returned by this command.
 
-### 2. Upload Plugins
+#### 2. Upload Plugins
 
 Next, upload the necessary plugins for your pipeline. Each command will return a unique `PLUGIN_UUID`.
 
@@ -112,7 +112,7 @@ Next, upload the necessary plugins for your pipeline. Each command will return a
 
 **Note:** Keep track of the `PLUGIN_UUID`s returned by these commands.
 
-### 3. Create and Upload the Pipeline
+#### 3. Create and Upload the Pipeline
 
 With your dataset and plugins uploaded, you can now define and upload your pipeline.
 
@@ -124,7 +124,7 @@ With your dataset and plugins uploaded, you can now define and upload your pipel
 
 **Note:** This command will return a `PIPELINE_UUID`. You'll need it for the next steps.
 
-### 4. Visualize and Execute the Pipeline
+#### 4. Visualize and Execute the Pipeline
 
 You are now ready to run your pipeline.
 
@@ -139,7 +139,7 @@ You are now ready to run your pipeline.
     python executor-cli/executor-cli.py execute PIPELINE_UUID
     ```
 
-### 5. View the Results
+#### 5. View the Results
 
 Once the execution is complete, you can find the output in the results directory, which is defined in your `executor-cli/.env` file (look for the `MAIN_WORKSPACE`/results path).
 
